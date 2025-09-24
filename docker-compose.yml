@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: myyk_dev
+      POSTGRES_USER: myyk
+      POSTGRES_PASSWORD: dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Redis for job queues
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # FastAPI orchestrator
+  orchestrator:
+    build:
+      context: ./apps/orchestrator
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://myyk:dev_password@postgres:5432/myyk_dev
+      - REDIS_URL=redis://redis:6379
+      - MODAL_TOKEN_ID=${MODAL_TOKEN_ID:-}
+      - MODAL_TOKEN_SECRET=${MODAL_TOKEN_SECRET:-}
+    volumes:
+      - ./apps/orchestrator:/app
+    depends_on:
+      - postgres
+      - redis
+    command: ["fastapi", "dev", "main.py", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  # Next.js web app
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://orchestrator:8000
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+    command: ["npm", "run", "dev"]
+
+  # MCP GitHub server
+  mcp-github:
+    build:
+      context: ./mcp-servers/github
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+    volumes:
+      - ./mcp-servers/github:/app
+
+  # MCP Supabase server
+  mcp-supabase:
+    build:
+      context: ./mcp-servers/supabase
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - SUPABASE_ACCESS_TOKEN=${SUPABASE_ACCESS_TOKEN:-}
+    volumes:
+      - ./mcp-servers/supabase:/app
+
+volumes:
+  postgres_data:
+  redis_data:
