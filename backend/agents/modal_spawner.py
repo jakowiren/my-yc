@@ -14,11 +14,11 @@ app = modal.App("my-yc-spawner")
 
 # Container image with agent dependencies
 image = modal.Image.debian_slim(python_version="3.11").pip_install(
-    "PyGithub>=1.59.0",  # GitHub API client
-    "httpx>=0.25.0",     # HTTP client
-    "pydantic>=2.0.0",   # Data validation
-    "python-dotenv>=1.0.0",  # Environment variables
-    "openai>=1.0.0",     # Future: AI model integration
+    "PyGithub>=1.59.0",       # GitHub API client
+    "httpx>=0.25.0",          # HTTP client for Supabase integration
+    "pydantic>=2.0.0",        # Data validation
+    "python-dotenv>=1.0.0",   # Environment variables
+    "openai>=1.0.0",          # Future: AI model integration
 )
 
 # Volume for persistent project state
@@ -165,6 +165,62 @@ def list_projects() -> Dict[str, Any]:
                     })
 
     return {"projects": projects}
+
+# Web endpoint for Supabase Edge Functions
+@app.web_endpoint(method="POST", path="/spawn")
+def spawn_project_web(request_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Web endpoint for spawning projects from Supabase Edge Functions.
+
+    Expects JSON payload:
+    {
+        "project_id": "uuid-string",
+        "config": {
+            "title": "Project Title",
+            "description": "Project description",
+            "category": "optional-category"
+        }
+    }
+    """
+    try:
+        project_id = request_data.get("project_id")
+        config = request_data.get("config", {})
+
+        if not project_id:
+            return {"success": False, "error": "project_id is required"}
+
+        if not config.get("title"):
+            return {"success": False, "error": "config.title is required"}
+
+        # Spawn the project asynchronously
+        result = spawn_project.spawn(project_id, config)
+
+        return {
+            "success": True,
+            "project_id": project_id,
+            "message": "Project spawning initiated",
+            "status": "spawning"
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Failed to spawn project"
+        }
+
+@app.web_endpoint(method="GET", path="/status/{project_id}")
+def get_project_status_web(project_id: str) -> Dict[str, Any]:
+    """Web endpoint to check project status."""
+    try:
+        result = get_project_status.remote(project_id)
+        return result
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "message": f"Failed to get status for project {project_id}"
+        }
 
 if __name__ == "__main__":
     # Local testing

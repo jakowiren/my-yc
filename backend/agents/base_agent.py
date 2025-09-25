@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
 from pathlib import Path
 from datetime import datetime
+from .supabase_integration import create_supabase_logger, SupabaseLogger
 
 
 class BaseAgent(ABC):
@@ -28,9 +29,10 @@ class BaseAgent(ABC):
         self.status = "initialized"
         self.progress = 0
         self.logs: List[Dict[str, Any]] = []
+        self.supabase_logger: Optional[SupabaseLogger] = None
 
     async def log(self, message: str, level: str = "info", data: Optional[Dict[str, Any]] = None):
-        """Log agent activity."""
+        """Log agent activity both locally and to Supabase for real-time monitoring."""
         log_entry = {
             "timestamp": datetime.utcnow().isoformat(),
             "agent": self.agent_name,
@@ -39,13 +41,34 @@ class BaseAgent(ABC):
             "data": data or {}
         }
         self.logs.append(log_entry)
+
+        # Console output
         print(f"🤖 [{self.agent_name}] {level.upper()}: {message}")
+
+        # Real-time logging to Supabase
+        if self.supabase_logger:
+            await self.supabase_logger.log(self.agent_name, message, level, data)
+        else:
+            # Try to initialize Supabase logger if not already done
+            if not hasattr(self, '_supabase_init_attempted'):
+                self.supabase_logger = await create_supabase_logger(self.project_id)
+                self._supabase_init_attempted = True
+                if self.supabase_logger:
+                    await self.supabase_logger.log(self.agent_name, message, level, data)
 
     async def update_status(self, status: str, progress: Optional[int] = None):
         """Update agent status and progress."""
         self.status = status
         if progress is not None:
             self.progress = progress
+
+        # Update project status in Supabase
+        if self.supabase_logger:
+            await self.supabase_logger.update_project_status(
+                status=status,
+                progress=progress
+            )
+
         await self.log(f"Status: {status}" + (f" ({progress}%)" if progress is not None else ""))
 
     @abstractmethod
