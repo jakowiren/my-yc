@@ -24,7 +24,7 @@ services:
   # FastAPI orchestrator
   orchestrator:
     build:
-      context: ./apps/orchestrator
+      context: ./backend/api
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
@@ -34,7 +34,7 @@ services:
       - MODAL_TOKEN_ID=${MODAL_TOKEN_ID:-}
       - MODAL_TOKEN_SECRET=${MODAL_TOKEN_SECRET:-}
     volumes:
-      - ./apps/orchestrator:/app
+      - ./backend/api:/app
     depends_on:
       - postgres
       - redis
@@ -46,26 +46,26 @@ services:
   # MCP GitHub server
   mcp-github:
     build:
-      context: ./mcp-servers/github
+      context: ./backend/mcp-servers/github
       dockerfile: Dockerfile
     ports:
       - "8001:8001"
     environment:
       - GITHUB_TOKEN=${GITHUB_TOKEN:-}
     volumes:
-      - ./mcp-servers/github:/app
+      - ./backend/mcp-servers/github:/app
 
   # MCP Supabase server
   mcp-supabase:
     build:
-      context: ./mcp-servers/supabase
+      context: ./backend/mcp-servers/supabase
       dockerfile: Dockerfile
     ports:
       - "8002:8002"
     environment:
       - SUPABASE_ACCESS_TOKEN=${SUPABASE_ACCESS_TOKEN:-}
     volumes:
-      - ./mcp-servers/supabase:/app
+      - ./backend/mcp-servers/supabase:/app
 
 volumes:
   postgres_data:
