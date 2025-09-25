@@ -43,29 +43,8 @@ services:
   # Frontend is now standalone in frontend/ folder
   # Deploy frontend to Vercel instead of running locally
 
-  # MCP GitHub server
-  mcp-github:
-    build:
-      context: ./backend/mcp-servers/github
-      dockerfile: Dockerfile
-    ports:
-      - "8001:8001"
-    environment:
-      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
-    volumes:
-      - ./backend/mcp-servers/github:/app
-
-  # MCP Supabase server
-  mcp-supabase:
-    build:
-      context: ./backend/mcp-servers/supabase
-      dockerfile: Dockerfile
-    ports:
-      - "8002:8002"
-    environment:
-      - SUPABASE_ACCESS_TOKEN=${SUPABASE_ACCESS_TOKEN:-}
-    volumes:
-      - ./backend/mcp-servers/supabase:/app
+  # MCP servers are now embedded in Modal agents
+  # No standalone servers needed!
 
 volumes:
   postgres_data:
