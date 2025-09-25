@@ -40,19 +40,8 @@ services:
       - redis
     command: ["fastapi", "dev", "main.py", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
-  # Next.js web app
-  web:
-    build:
-      context: ./apps/web
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://orchestrator:8000
-    volumes:
-      - ./apps/web:/app
-      - /app/node_modules
-    command: ["npm", "run", "dev"]
+  # Frontend is now standalone in frontend/ folder
+  # Deploy frontend to Vercel instead of running locally
 
   # MCP GitHub server
   mcp-github:
