@@ -71,7 +71,7 @@ export default function Home() {
                 </div>
                 <div className="bg-gray-50 rounded-2xl px-4 py-3 max-w-md">
                   <p className="text-gray-800">
-                    👋 Hi! I'm your AI agent team. Describe your startup idea and I'll
+                    👋 Hi! I&apos;m your AI agent team. Describe your startup idea and I&apos;ll
                     create a complete application with:
                   </p>
                   <ul className="mt-2 text-sm text-gray-600 space-y-1">
