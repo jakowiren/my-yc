@@ -14,11 +14,11 @@ app = modal.App("my-yc-spawner")
 
 # Container image with agent dependencies
 image = modal.Image.debian_slim(python_version="3.11").pip_install(
-    "langgraph>=0.0.30",
-    "openai>=1.0.0",
-    "httpx>=0.25.0",
-    "pydantic>=2.0.0",
-    "python-dotenv>=1.0.0",
+    "PyGithub>=1.59.0",  # GitHub API client
+    "httpx>=0.25.0",     # HTTP client
+    "pydantic>=2.0.0",   # Data validation
+    "python-dotenv>=1.0.0",  # Environment variables
+    "openai>=1.0.0",     # Future: AI model integration
 )
 
 # Volume for persistent project state
@@ -30,6 +30,7 @@ project_volume = modal.Volume.from_name("my-yc-projects", create_if_missing=True
     memory=4096,
     timeout=3600,  # 1 hour max runtime
     volumes={"/projects": project_volume},
+    secrets=[modal.Secret.from_name("my-yc-secrets")],  # GitHub token and other credentials
     schedule=modal.Cron("0 */6 * * *")  # Wake every 6 hours
 )
 async def project_executor(project_id: str, project_config: Dict[str, Any]):
@@ -93,7 +94,8 @@ async def project_executor(project_id: str, project_config: Dict[str, Any]):
     image=image,
     cpu=1,
     memory=1024,
-    timeout=60
+    timeout=60,
+    secrets=[modal.Secret.from_name("my-yc-secrets")]
 )
 def spawn_project(project_id: str, idea_config: Dict[str, Any]) -> Dict[str, str]:
     """
@@ -121,7 +123,8 @@ def spawn_project(project_id: str, idea_config: Dict[str, Any]) -> Dict[str, str
     image=image,
     cpu=0.5,
     memory=512,
-    timeout=30
+    timeout=30,
+    volumes={"/projects": project_volume}
 )
 def get_project_status(project_id: str) -> Dict[str, Any]:
     """Get the current status of a project."""
@@ -139,7 +142,8 @@ def get_project_status(project_id: str) -> Dict[str, Any]:
     image=image,
     cpu=0.5,
     memory=512,
-    timeout=30
+    timeout=30,
+    volumes={"/projects": project_volume}
 )
 def list_projects() -> Dict[str, Any]:
     """List all active projects."""
