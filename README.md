@@ -2,357 +2,194 @@
 
 > Transform ideas into reality with autonomous AI agents. Be the YC of your own startup portfolio.
 
-## 🚀 Vision
-
-**my-yc** is a revolutionary platform that allows anyone to become their own Y Combinator. Users submit business ideas and receive fully autonomous AI agent swarms that handle everything from market research to deployment - creating complete startups with minimal human intervention.
-
-### Key Differentiators
-- **Full-Stack Execution**: Beyond brainstorming - agents build real products
-- **Autonomous Operation**: Projects run independently after launch
-- **Zero Idle Costs**: Serverless architecture scales to zero
-- **MCP Integration**: Leverages cutting-edge Model Context Protocol
-- **Portfolio Management**: Manage multiple startups like a VC
+**my-yc** is a revolutionary platform that allows anyone to become their own Y Combinator. Users submit business ideas and receive fully autonomous AI agent swarms that handle everything from repository creation to deployment - creating complete startups with minimal human intervention.
 
 ## 🏗️ Architecture
 
-### Core Innovation: Autonomous Spawn-and-Forget Projects
-
-Each startup becomes a **self-contained, autonomous entity** that provisions its own infrastructure, manages its own services, and runs independently after launch. This eliminates ongoing operational costs for the platform.
-
-### Two-Tier System Design
+### Production Architecture: Vercel + Supabase + Modal
 
 ```mermaid
-graph TB
-    A[User Dashboard] --> B[Control Plane]
-    B --> C[Project Spawner]
-    C --> D[Modal/Fly Container]
-    D --> E[Agent Swarm]
-    E --> F[MCP Services]
-    F --> G[Live Startup]
+graph TD
+    A[👤 User<br/>Submits Idea] --> B[🌐 Frontend<br/>Vercel]
+    B --> C[⚡ Supabase<br/>Edge Functions]
+    C --> D[🗄️ Database<br/>Projects & Logs]
+    C --> E[🤖 Modal Agents<br/>AI Swarm]
+    E --> F[📦 GitHub<br/>Repository]
+    E --> G[🚀 Vercel<br/>Deployment]
+    E --> D
+    D --> H[📡 Realtime<br/>WebSocket]
+    H --> B
+
+    style A fill:#e1f5fe
+    style B fill:#f3e5f5
+    style C fill:#e8f5e8
+    style D fill:#fff3e0
+    style E fill:#fce4ec
+    style F fill:#f1f8e9
+    style G fill:#e3f2fd
+    style H fill:#fafafa
 ```
 
-#### Control Plane (my-yc.com)
+### Key Features
+
+- **🎯 Real-Time Monitoring**: SSH-like terminal experience with live log streaming
+- **🤖 Autonomous Agents**: Embedded MCP tools for GitHub, databases, and deployments
+- **💰 Zero Idle Costs**: Serverless architecture scales to zero when not in use
+- **⚡ Instant Deployment**: From idea to live startup in minutes
+- **📊 Portfolio Dashboard**: Manage multiple projects like a VC fund
+
+## 🔄 How It Works
+
+1. **💡 Submit Idea**: User describes their startup concept via the web interface
+2. **⚡ Edge Function**: Supabase processes the request and triggers Modal agents
+3. **🤖 AI Agents**: Autonomous swarm creates GitHub repo, sets up Next.js project, and configures deployment
+4. **📺 Live Monitoring**: Real-time terminal output streams via WebSocket (like Lovable)
+5. **🚀 Ready to Deploy**: Complete startup with one-click Vercel deployment
+
+## 🛠️ Tech Stack
+
+### Frontend (Vercel)
+- **Framework**: Next.js 14 with App Router
+- **Styling**: Tailwind CSS + shadcn/ui components
+- **Real-time**: Supabase WebSocket subscriptions
+- **Deployment**: Vercel (automatic from GitHub)
+
+### Backend (Supabase)
+- **Database**: PostgreSQL with real-time subscriptions
+- **Edge Functions**: Serverless API endpoints (Deno runtime)
+- **Auth**: Built-in authentication system
+- **Real-time**: WebSocket broadcasting
+
+### AI Agents (Modal)
+- **Runtime**: Isolated Python containers
+- **Framework**: Custom agent orchestration
+- **MCP Tools**: Embedded GitHub, Supabase, Vercel integrations
+- **Scaling**: Auto-sleep when idle (zero cost)
+
+## 📁 Project Structure
+
 ```
 my-yc/
-├── apps/
-│   ├── web/                    # Next.js 15 dashboard
-│   │   ├── project-launcher/   # UI for idea submission
-│   │   ├── portfolio-view/     # Monitor all projects
-│   │   └── billing/           # Stripe integration
-│   └── orchestrator/           # FastAPI service
-│       ├── spawn-manager/      # Modal/Fly.io API
-│       ├── mcp-registry/       # Available MCP servers
-│       └── project-tracker/    # PostgreSQL state
+├── frontend/                    # Next.js app (deploy to Vercel)
+│   ├── app/                    # Next.js 14 App Router
+│   ├── components/             # React components + shadcn/ui
+│   └── package.json           # Frontend dependencies
+├── backend/
+│   └── agents/                 # Modal AI agents
+│       ├── modal_spawner.py   # Main deployment + web endpoints
+│       ├── github_agent.py    # Repository creation agent
+│       ├── supabase_integration.py  # Real-time logging
+│       └── mcp_tools/         # Embedded MCP integrations
+└── ARCHITECTURE.md            # Detailed implementation guide
 ```
 
-#### Execution Plane (Project Instance Template)
-Each project runs in isolated containers with:
-```
-project-instance/
-├── agents/
-│   ├── coordinator.py          # LangGraph orchestration
-│   ├── frontend_agent.py       # MCP: Lovable, Vercel
-│   ├── backend_agent.py        # MCP: Supabase, GitHub
-│   └── business_agent.py       # MCP: Email, Stripe
-├── mcp-servers/
-│   ├── supabase-provisioner/   # Creates Supabase projects
-│   ├── vercel-deployer/        # Deploys to Vercel
-│   └── email-creator/          # Provisions email accounts
-└── project-state/
-    └── state.json              # Persistent project config
-```
-
-## 🤖 Agent Architecture
-
-### MCP-Enabled Agent Capabilities
-
-```yaml
-├── Frontend Agent
-│   ├── MCP: Lovable (UI generation)
-│   ├── MCP: Figma API (design assets)
-│   └── MCP: Vercel (deployment)
-├── Backend Agent
-│   ├── MCP: Supabase Management API (database)
-│   ├── MCP: GitHub API (code repository)
-│   └── MCP: Railway/Render (deployment)
-├── Business Agent
-│   ├── MCP: Resend API (email provisioning)
-│   ├── MCP: Stripe API (payment setup)
-│   └── MCP: Google Workspace (domain/email)
-└── Coordinator Agent
-    ├── MCP: Slack API (team workspace)
-    ├── MCP: Linear API (project management)
-    └── MCP: Cloudflare (DNS/CDN)
-```
-
-### Autonomous Capabilities
-
-Each project can:
-- 📧 Create its own email address
-- 🗄️ Set up its own database
-- 🌐 Deploy its own website
-- 💳 Accept its own payments
-- 👥 Email its own customers
-- 📊 Analyze its own metrics
-
-## 🔄 Project Lifecycle
-
-```
-User Idea → Control Plane → Spawn Container → Agent Swarm →
-Service Provisioning → Autonomous Deployment → Sleep (£0 cost) →
-Wake on Demand → Continuous Evolution
-```
-
-### Example Flow
-1. User submits: "AI-powered recipe recommender"
-2. Control plane spawns Modal container
-3. Agents autonomously:
-   - Research market & competitors
-   - Design UI in Lovable
-   - Create Supabase database
-   - Build Next.js frontend
-   - Deploy to Vercel
-   - Set up Stripe payments
-   - Create email campaigns
-4. Container sleeps (zero cost)
-5. Startup operates independently
-
-## 🛠️ Technology Stack
-
-### Core Infrastructure
-- **Containers**: Modal.com (primary) / Fly.io (alternative)
-- **Agent Framework**: LangGraph for orchestration
-- **MCP Integration**: Model Context Protocol for service access
-- **Frontend**: Next.js 15 + TypeScript + Tailwind CSS + shadcn/ui
-- **Backend**: FastAPI (Python) for agent orchestration + Node.js for real-time updates
-- **Database**: PostgreSQL + Redis (job queues) + Pinecone (vector store)
-- **Real-time**: WebSockets for agent progress streaming
-- **Auth**: Clerk or Auth0 for rapid implementation
-
-### Agent Tools (via MCP)
-- **UI Generation**: Lovable, v0, Figma
-- **Database**: Supabase Management API
-- **Deployment**: Vercel, Railway, Render
-- **Communication**: Resend, SendGrid, Twilio
-- **Payments**: Stripe Connect
-- **Infrastructure**: Cloudflare, AWS
-
-## 🔒 MCP Integration Details
-
-### Autonomous Service Provisioning Flow
-
-```python
-# Example: Backend Agent creating Supabase project
-class BackendAgent:
-    async def provision_infrastructure(self):
-        # 1. Create Supabase project via Management API
-        supabase_project = await mcp.execute(
-            server="supabase-provisioner",
-            action="create_project",
-            params={
-                "name": f"{project_id}-backend",
-                "region": "us-east-1",
-                "plan": "free"
-            }
-        )
-
-        # 2. Store credentials in project vault
-        await vault.store({
-            "supabase_url": supabase_project.url,
-            "supabase_anon_key": supabase_project.anon_key
-        })
-
-        # 3. Initialize database schema
-        await mcp.execute(
-            server="supabase-sql",
-            action="run_migrations",
-            params={"project_id": supabase_project.id}
-        )
-```
-
-### MCP Security Architecture
-```yaml
-Credential Management:
-├── Master Vault (Control Plane)
-│   ├── Platform API keys (Supabase, Vercel master accounts)
-│   └── Encrypted with AWS KMS
-├── Project Vault (Per Instance)
-│   ├── Generated service credentials
-│   ├── Ephemeral tokens with expiry
-│   └── Destroyed on project termination
-```
-
-### Security & Isolation
-```yaml
-Isolation Layers:
-├── Network: Each project in separate VPC/namespace
-├── Compute: Hardware-isolated containers (KVM on Fly)
-├── Credentials: Scoped OAuth tokens with least privilege
-├── Rate Limits: Per-project API quotas
-└── Monitoring: Anomaly detection on resource usage
-```
-
-## 💰 Cost Optimization Strategy
-
-### Modal.com Implementation (Recommended)
-```python
-# Spawn project with auto-sleep
-@modal.function(
-    cpu=2,
-    memory=4096,
-    timeout=3600,  # 1 hour max runtime
-    schedule=modal.Cron("0 */6 * * *")  # Wake every 6 hours
-)
-async def project_executor(project_id: str):
-    # Load project state
-    # Run agent tasks
-    # Sleep when done (zero cost)
-```
-
-### Alternative: Fly.io Machines
-```toml
-# fly.toml for project instance
-[http_service]
-  auto_stop_machines = true      # Stop when idle
-  auto_start_machines = true     # Wake on request
-  min_machines_running = 0       # Scale to zero
-```
-
-### Revolutionary Economics
-- **Initial Spawn**: $0.50-2.00 per project (one-time)
-- **Idle Projects**: $0.00 (containers sleep automatically)
-- **Active Runtime**: $0.0001/second when working
-- **User Pays**: $29-299/month subscription
-- **Platform Cost**: ~$5-20/month in actual compute
-
-### Pricing Tiers
-- **Starter** ($29/mo): 1 active project, basic agents
-- **Growth** ($99/mo): 5 active projects, all agents
-- **Scale** ($299/mo): Unlimited projects, priority processing
-- **Enterprise**: Custom pricing, dedicated resources
-
-## 🚦 Development Roadmap
-
-### Phase 1: MCP Foundation (Weeks 1-2)
-- [ ] Set up basic MCP server for GitHub operations
-- [ ] Create Modal.com spawner for isolated containers
-- [ ] Test agent creating its own GitHub repository
-- [ ] Implement secure credential vault system
-
-### Phase 2: Service Provisioners (Weeks 3-4)
-- [ ] Supabase MCP server (project creation)
-- [ ] Vercel MCP server (deployment)
-- [ ] Resend MCP server (email provisioning)
-- [ ] Test full autonomous provisioning flow
-
-### Phase 3: Agent Orchestration (Weeks 5-6)
-- [ ] LangGraph multi-agent coordinator
-- [ ] Frontend agent with Lovable MCP integration
-- [ ] Backend agent with Supabase MCP integration
-- [ ] End-to-end project generation pipeline
-
-### Phase 4: Production Platform (Weeks 7-8)
-- [ ] User dashboard (Next.js)
-- [ ] Billing integration (Stripe)
-- [ ] Real-time project monitoring via WebSockets
-- [ ] Security hardening & rate limiting
-
-## 🏃‍♂️ Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js 18+
-- Python 3.11+
-- Docker & Docker Compose
-- Modal.com account (free tier available)
+- Modal account (free tier available)
+- Supabase project
+- GitHub token for my-yc-creator account
 
-### Local Development
-
+### 1. Deploy Frontend
 ```bash
-# Clone and setup
-git clone https://github.com/your-org/my-yc.git
-cd my-yc
+cd frontend/
 npm install
-
-# Start development environment
-docker compose up --build
-
-# Launch test project
-python scripts/spawn_test_project.py "AI recipe app"
+npm run build
+vercel deploy
 ```
 
-### Project Structure
+### 2. Set Up Supabase
+```sql
+-- Run in Supabase SQL Editor
+CREATE TABLE projects (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  description TEXT,
+  status TEXT DEFAULT 'spawning',
+  progress INTEGER DEFAULT 0,
+  github_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE project_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES projects(id),
+  agent_name TEXT NOT NULL,
+  level TEXT DEFAULT 'info',
+  message TEXT NOT NULL,
+  timestamp TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable realtime
+ALTER PUBLICATION supabase_realtime ADD TABLE project_logs;
 ```
-my-yc/
-├── apps/
-│   ├── web/                    # Next.js dashboard
-│   ├── orchestrator/           # FastAPI service
-│   └── project-template/       # Agent container template
-├── packages/
-│   ├── agents/                 # LangGraph agents
-│   ├── mcp-servers/            # MCP service integrations
-│   └── shared/                 # Common utilities
-├── docker-compose.yml          # Local development
-└── modal_deploy.py            # Production deployment
-```
 
-## 🔮 Future Vision
-
-### Key Innovation: Projects as Autonomous Entities
-
-Each project becomes like a "digital employee" that can:
-- Create its own email address
-- Set up its own database
-- Deploy its own website
-- Accept its own payments
-- Email its own customers
-
-The user truly becomes the "YC" - an investor/advisor to multiple autonomous startups, each running independently with near-zero marginal cost.
-
-### Platform Effects
-- Projects can spawn sub-projects
-- Agent-to-agent collaboration across startups
-- Autonomous acquisition and merger capabilities
-- Self-improving agent swarms
-
-### Market Impact
-- Democratize startup creation
-- Reduce barrier to entrepreneurship from months to hours
-- Enable portfolio entrepreneurship at scale
-- Create new category: "Autonomous Startup as a Service"
-
-## 🚀 Day 1 Implementation Guide
-
-### Initial File Structure
+### 3. Deploy Modal Agents
 ```bash
-# Day 1: Core infrastructure
-my-yc/
-├── docker-compose.yml          # Local dev with MCP servers
-├── modal_spawner.py           # Project launcher
-├── mcp-servers/
-│   ├── github/                # First MCP server
-│   └── supabase/             # Second MCP server
-└── examples/
-    └── test-project/          # Validate autonomous flow
+cd backend/agents/
+
+# Set up secrets
+modal secret create my-yc-secrets \
+  GITHUB_TOKEN=your_github_token \
+  SUPABASE_URL=your_supabase_url \
+  SUPABASE_ANON_KEY=your_anon_key
+
+# Deploy agents
+modal deploy modal_spawner.py
 ```
 
-### Competitive Advantages
+### 4. Configure Edge Functions
+Create Supabase Edge Function to connect frontend → Modal:
 
-1. **True Autonomy**: Projects provision their own infrastructure
-2. **Zero Idle Cost**: Serverless containers sleep automatically
-3. **MCP Ecosystem**: Leverages all major AI tools (Lovable, etc.)
-4. **Infinitely Scalable**: Each project is isolated
-5. **Platform Effects**: Projects can spawn sub-projects
+```javascript
+// supabase/functions/spawn_project/index.ts
+serve(async (req) => {
+  const { title, description } = await req.json()
 
-## 🤝 Contributing
+  // Create project record
+  const { data: project } = await supabase
+    .from('projects')
+    .insert({ title, description })
+    .select()
+    .single()
 
-We're building the future of autonomous entrepreneurship. Join us:
+  // Trigger Modal agents
+  await fetch('https://your-modal-app--spawn-project-web.modal.run/spawn', {
+    method: 'POST',
+    body: JSON.stringify({
+      project_id: project.id,
+      config: { title, description }
+    })
+  })
 
-1. **Agent Developers**: Build new MCP integrations
-2. **Platform Engineers**: Scale the infrastructure
-3. **Product Designers**: Improve user experience
-4. **Entrepreneurs**: Test with real startup ideas
+  return new Response(JSON.stringify({ project_id: project.id }))
+})
+```
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+## 🌟 Example Workflow
+
+```bash
+# User submits: "AI Recipe Recommender for health-conscious users"
+
+# Real-time terminal output:
+🤖 [github] INFO: Creating repository: ai-recipe-recommender-abc123
+🤖 [github] INFO: Repository created: https://github.com/my-yc-creator/ai-recipe-recommender-abc123
+🤖 [github] INFO: Setting up Next.js project structure
+🤖 [github] SUCCESS: Created 8 files (package.json, app/page.tsx, etc.)
+🤖 [github] INFO: Enhanced README with deployment instructions
+🤖 [github] SUCCESS: Project completed - ready for deployment!
+
+# Result: Complete startup ready for one-click Vercel deployment
+```
+
+## 🚦 Development Status
+
+- ✅ **Frontend**: Complete Next.js app with real-time monitoring
+- ✅ **Modal Agents**: GitHub agent with embedded MCP tools
+- ✅ **Architecture**: Production-ready Vercel + Supabase + Modal
+- 🔄 **In Progress**: Supabase Edge Functions
+- 🔄 **Planned**: Database agent, deployment agent, email agent
 
 ## 📄 License
 
@@ -362,4 +199,4 @@ MIT License - Build the future freely.
 
 **Ready to become your own Y Combinator?**
 
-Start your first autonomous startup today at [my-yc.com](https://my-yc.com)
+Transform your ideas into autonomous startups today! 🚀
