@@ -47,34 +47,29 @@ export default function Home() {
   }, [currentPrompt, promptIndex, isTyping])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 relative overflow-hidden">
-      {/* Animated Background Elements */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-violet-950 relative overflow-hidden">
+      {/* Cosmic Background Elements */}
       <div className="absolute inset-0">
-        <div className="absolute top-20 left-20 w-72 h-72 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute top-40 right-32 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute bottom-20 left-1/3 w-80 h-80 bg-pink-500/20 rounded-full blur-3xl animate-pulse delay-2000"></div>
+        {/* Deep space nebula clouds */}
+        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-violet-950/30 via-transparent to-purple-950/20"></div>
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-radial from-violet-900/10 via-purple-900/5 to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-gradient-radial from-indigo-950/15 via-violet-950/8 to-transparent rounded-full blur-2xl"></div>
+        <div className="absolute top-1/2 left-2/3 w-64 h-64 bg-gradient-radial from-purple-950/12 via-slate-900/6 to-transparent rounded-full blur-xl"></div>
+        {/* Subtle cosmic dust overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/40"></div>
       </div>
 
       {/* Header */}
-      <header className="relative z-10 border-b border-white/10 bg-white/5 backdrop-blur-sm">
+      <header className="relative z-10 border-b border-violet-500/20 bg-slate-950/20 backdrop-blur-md">
         <div className="container mx-auto px-4 py-4">
           <nav className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-purple-400 to-pink-400 rounded-lg">
-                <Sparkles className="h-5 w-5 text-white" />
-              </div>
               <span className="text-2xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
                 my-yc
               </span>
             </div>
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" className="text-purple-100 hover:text-white hover:bg-white/10">
-                Examples
-              </Button>
-              <Button variant="ghost" className="text-purple-100 hover:text-white hover:bg-white/10">
-                Docs
-              </Button>
-              <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 border-0">
+              <Button className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 border-0 shadow-lg shadow-violet-500/25">
                 Sign In
               </Button>
             </div>
@@ -97,25 +92,21 @@ export default function Home() {
           </div>
 
           {/* Chat Interface */}
-          <div className="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 shadow-2xl max-w-2xl mx-auto">
+          <div className="bg-slate-950/30 backdrop-blur-xl rounded-3xl border border-violet-500/30 shadow-2xl shadow-violet-900/20 max-w-2xl mx-auto">
             {/* Chat Input */}
             <div className="p-8">
               <div className="flex space-x-4">
                 <Textarea
                   placeholder={currentPrompt}
-                  className="flex-1 resize-none min-h-[80px] bg-white/10 border-white/20 text-white placeholder:text-purple-200 focus:border-purple-300 focus:ring-purple-300/50 text-lg"
+                  className="flex-1 resize-none min-h-[80px] bg-slate-950/40 border-violet-500/30 text-white placeholder:text-violet-300 focus:border-violet-400 focus:ring-violet-400/50 text-lg backdrop-blur-sm"
                 />
-                <Button size="lg" className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 px-8 h-20">
+                <Button size="lg" className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 px-8 h-20 shadow-lg shadow-violet-500/25 border-0">
                   <Send className="w-6 h-6" />
                 </Button>
               </div>
             </div>
           </div>
 
-          {/* Simple Footer */}
-          <div className="text-center mt-20 text-purple-200 text-sm">
-            <p>Built with ❤️ by autonomous AI agents</p>
-          </div>
         </div>
       </main>
     </div>
