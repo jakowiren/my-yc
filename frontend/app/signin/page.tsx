@@ -106,7 +106,7 @@ export default function SignInPage() {
           {/* Footer */}
           <div className="text-center">
             <p className="text-violet-400 text-sm">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <span className="text-violet-300">Sign up automatically on first sign in</span>
             </p>
             <Link
