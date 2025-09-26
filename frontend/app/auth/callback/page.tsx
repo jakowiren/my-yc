@@ -35,7 +35,7 @@ export default function AuthCallback() {
   }, [router])
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-blue-900 to-rose-500 flex items-center justify-center">
+    <div className="min-h-screen bg-black flex items-center justify-center">
       <div className="text-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
         <p className="text-white">Completing authentication...</p>
