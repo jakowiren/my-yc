@@ -54,32 +54,31 @@ export default function Home() {
     <div className="min-h-screen bg-black relative overflow-hidden">
       {/* Star Field */}
       <div className="absolute inset-0">
-        {/* Tiny Stars */}
-        {Array.from({ length: 200 }).map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-0.5 h-0.5 bg-white rounded-full opacity-60"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 3}s`,
-            }}
-          />
-        ))}
+        {/* Static Stars - Different Sizes */}
+        {Array.from({ length: 100 }).map((_, i) => {
+          const size = Math.random() < 0.7 ? 'w-0.5 h-0.5' : Math.random() < 0.9 ? 'w-1 h-1' : 'w-1.5 h-1.5'
+          const opacity = Math.random() < 0.7 ? 'opacity-40' : Math.random() < 0.9 ? 'opacity-60' : 'opacity-80'
+          return (
+            <div
+              key={i}
+              className={`absolute ${size} bg-white rounded-full ${opacity}`}
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+              }}
+            />
+          )
+        })}
 
-        {/* Shooting Stars */}
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={`shooting-${i}`}
-            className="absolute w-1 h-0.5 bg-gradient-to-r from-white to-transparent rounded-full opacity-0 animate-shooting-star"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 50}%`,
-              animationDelay: `${i * 8 + Math.random() * 5}s`,
-              transform: `rotate(-45deg)`,
-            }}
-          />
-        ))}
+        {/* Single Subtle Shooting Star */}
+        <div
+          className="absolute w-16 h-0.5 bg-gradient-to-r from-white/80 via-white/40 to-transparent rounded-full opacity-0 animate-shooting-star"
+          style={{
+            left: '-100px',
+            top: '20%',
+            transform: 'rotate(-30deg)',
+          }}
+        />
       </div>
 
       {/* Header */}

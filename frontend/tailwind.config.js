@@ -72,7 +72,7 @@ module.exports = {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "shooting-star": "shooting-star 3s linear infinite",
+        "shooting-star": "shooting-star 4s ease-out infinite 8s",
       },
     },
   },

@@ -61,13 +61,16 @@
 @keyframes shooting-star {
   0% {
     opacity: 0;
-    transform: translateX(-100px) translateY(-100px) rotate(-45deg);
+    transform: translateX(-100px) translateY(0) rotate(-30deg);
   }
-  50% {
-    opacity: 1;
+  10% {
+    opacity: 0.8;
+  }
+  90% {
+    opacity: 0.8;
   }
   100% {
     opacity: 0;
-    transform: translateX(300px) translateY(300px) rotate(-45deg);
+    transform: translateX(100vw) translateY(200px) rotate(-30deg);
   }
 }
