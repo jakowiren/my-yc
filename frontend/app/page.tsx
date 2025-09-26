@@ -98,6 +98,27 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Separator Line */}
+          <div className="w-full h-px bg-white/10 my-12"></div>
+
+          {/* Your Startups Section */}
+          <div className="w-full max-w-4xl mx-auto">
+            <h2 className="text-xl font-light text-white mb-6">Your Startups</h2>
+
+            {!user ? (
+              <div className="text-center py-8">
+                <p className="text-white/60 text-sm">Log in to see your startups</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Project containers will be populated here */}
+                <div className="text-center py-12 col-span-full">
+                  <p className="text-white/40 text-sm">Your startups will appear here</p>
+                </div>
+              </div>
+            )}
+          </div>
+
         </div>
       </main>
     </div>
