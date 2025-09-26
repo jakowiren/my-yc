@@ -22,19 +22,6 @@ export default function Home() {
   const [promptIndex, setPromptIndex] = useState(0)
   const [isTyping, setIsTyping] = useState(true)
 
-  // Cursor tracking for star
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      const star = document.getElementById('cursor-star')
-      if (star) {
-        star.style.left = `${e.clientX - 2}px`
-        star.style.top = `${e.clientY - 2}px`
-      }
-    }
-
-    window.addEventListener('mousemove', handleMouseMove)
-    return () => window.removeEventListener('mousemove', handleMouseMove)
-  }, [])
 
   useEffect(() => {
     let timeout: NodeJS.Timeout
@@ -66,12 +53,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Cursor Following Star */}
-      <div
-        id="cursor-star"
-        className="fixed w-1 h-1 bg-white rounded-full pointer-events-none z-50 opacity-60 transition-all duration-75 ease-out"
-        style={{ left: '-10px', top: '-10px' }}
-      />
 
       {/* Header */}
       <header className="relative z-10 border-b border-white/5">
