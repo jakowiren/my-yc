@@ -61,8 +61,15 @@ export function useChat(): UseChatReturn {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to send message')
+        let errorMessage = 'Failed to send message'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch (e) {
+          // If JSON parsing fails, use the status text
+          errorMessage = response.statusText || errorMessage
+        }
+        throw new Error(errorMessage)
       }
 
       // Handle streaming response
@@ -91,15 +98,24 @@ export function useChat(): UseChatReturn {
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
-            const data = line.slice(6)
+            const data = line.slice(6).trim()
 
             if (data === '[DONE]') {
               setIsLoading(false)
               return
             }
 
+            if (data === '') {
+              // Skip empty data lines
+              continue
+            }
+
             try {
               const parsed = JSON.parse(data)
+              if (parsed.error) {
+                // Handle error from stream
+                throw new Error(parsed.error)
+              }
               if (parsed.content) {
                 assistantContent += parsed.content
 
@@ -113,7 +129,12 @@ export function useChat(): UseChatReturn {
                 )
               }
             } catch (e) {
-              // Ignore parsing errors for streaming data
+              if (e instanceof Error && e.message !== 'Unexpected end of JSON input') {
+                // Re-throw actual errors, but ignore JSON parsing errors from incomplete chunks
+                throw e
+              }
+              // Ignore parsing errors for streaming data - could be incomplete JSON chunks
+              console.debug('Skipping unparseable chunk:', data)
             }
           }
         }

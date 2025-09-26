@@ -79,7 +79,10 @@ export async function POST(req: NextRequest) {
           controller.close()
         } catch (error) {
           console.error('Streaming error:', error)
-          controller.error(error)
+          // Send error message before closing
+          const errorData = `data: ${JSON.stringify({ error: 'Streaming failed' })}\n\n`
+          controller.enqueue(encoder.encode(errorData))
+          controller.close()
         }
       },
     })

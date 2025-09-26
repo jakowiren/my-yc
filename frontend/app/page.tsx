@@ -124,10 +124,12 @@ export default function Home() {
 
           {/* Chat Interface */}
           <div className="w-full max-w-4xl mx-auto">
-            {/* Chat Messages */}
-            {chatExpanded && messages.length > 0 && (
-              <div className="mb-6">
-                <div className="bg-black/50 border border-white/10 rounded-lg p-4 max-h-96 overflow-y-auto">
+            <div className={`bg-black border border-white/10 rounded-lg transition-all duration-300 ${
+              chatExpanded ? 'p-4' : 'p-3'
+            }`}>
+              {/* Chat Messages - Only show when expanded */}
+              {chatExpanded && messages.length > 0 && (
+                <div className="mb-4 max-h-96 overflow-y-auto">
                   {messages.map((message) => (
                     <ChatMessageComponent key={message.id} message={message} />
                   ))}
@@ -145,12 +147,10 @@ export default function Home() {
                   )}
                   <div ref={messagesEndRef} />
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Input Interface */}
-            <div className="w-full max-w-xl mx-auto">
-              <div className="bg-black border border-white/10 rounded-lg p-3">
+              {/* Input Interface */}
+              <div className={chatExpanded ? "border-t border-white/10 pt-4" : ""}>
                 <Textarea
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
@@ -172,12 +172,12 @@ export default function Home() {
                   </button>
                 </div>
               </div>
-              {error && (
-                <div className="mt-2 text-xs text-red-400 text-center">
-                  {error}
-                </div>
-              )}
             </div>
+            {error && (
+              <div className="mt-2 text-xs text-red-400 text-center">
+                {error}
+              </div>
+            )}
           </div>
 
           {/* Separator Line */}
