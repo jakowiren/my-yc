@@ -3,8 +3,11 @@
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Sparkles, Send, LogOut } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/lib/auth-context"
+import { useChat } from "@/lib/hooks/use-chat"
+import { ChatMessageComponent } from "@/components/chat/ChatMessage"
+import { LoginModal } from "@/components/chat/LoginModal"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -18,9 +21,14 @@ const examplePrompts = [
 
 export default function Home() {
   const { user, loading, signOut } = useAuth()
+  const { messages, isLoading, error, sendMessage, clearMessages } = useChat()
   const [currentPrompt, setCurrentPrompt] = useState("")
   const [promptIndex, setPromptIndex] = useState(0)
   const [isTyping, setIsTyping] = useState(true)
+  const [inputValue, setInputValue] = useState("")
+  const [showLoginModal, setShowLoginModal] = useState(false)
+  const [chatExpanded, setChatExpanded] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
 
   useEffect(() => {
@@ -50,6 +58,35 @@ export default function Home() {
 
     return () => clearTimeout(timeout)
   }, [currentPrompt, promptIndex, isTyping])
+
+  // Auto scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  const handleSendMessage = async () => {
+    if (!inputValue.trim()) return
+
+    if (!user) {
+      setShowLoginModal(true)
+      return
+    }
+
+    try {
+      await sendMessage(inputValue)
+      setInputValue('')
+      setChatExpanded(true)
+    } catch (error) {
+      console.error('Failed to send message:', error)
+    }
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSendMessage()
+    }
+  }
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
@@ -85,16 +122,61 @@ export default function Home() {
             </h1>
           </div>
 
-          {/* Input Interface */}
-          <div className="w-full max-w-xl mx-auto">
-            <div className="bg-black border border-white/10 rounded-lg p-3">
-              <Textarea
-                placeholder={currentPrompt}
-                className="w-full resize-none min-h-[60px] bg-transparent border-0 text-white placeholder:text-white/40 focus:ring-0 text-sm"
-              />
-              <div className="flex items-center justify-end mt-2">
-                <button className="text-white/50 hover:text-white text-xs px-2 py-1">Send</button>
+          {/* Chat Interface */}
+          <div className="w-full max-w-4xl mx-auto">
+            {/* Chat Messages */}
+            {chatExpanded && messages.length > 0 && (
+              <div className="mb-6">
+                <div className="bg-black/50 border border-white/10 rounded-lg p-4 max-h-96 overflow-y-auto">
+                  {messages.map((message) => (
+                    <ChatMessageComponent key={message.id} message={message} />
+                  ))}
+                  {isLoading && (
+                    <div className="flex justify-start mb-4">
+                      <div className="bg-white/5 border border-white/10 px-4 py-3 rounded-lg">
+                        <div className="text-xs text-white/60 mb-1 font-medium">Jason</div>
+                        <div className="flex items-center space-x-1">
+                          <div className="w-2 h-2 bg-white/60 rounded-full animate-pulse"></div>
+                          <div className="w-2 h-2 bg-white/60 rounded-full animate-pulse delay-100"></div>
+                          <div className="w-2 h-2 bg-white/60 rounded-full animate-pulse delay-200"></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
               </div>
+            )}
+
+            {/* Input Interface */}
+            <div className="w-full max-w-xl mx-auto">
+              <div className="bg-black border border-white/10 rounded-lg p-3">
+                <Textarea
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder={inputValue ? '' : currentPrompt}
+                  className="w-full resize-none min-h-[60px] bg-transparent border-0 text-white placeholder:text-white/40 focus:ring-0 text-sm"
+                  disabled={isLoading}
+                />
+                <div className="flex items-center justify-between mt-2">
+                  <div className="text-xs text-white/40">
+                    {!user ? 'Sign in to chat with Jason' : (chatExpanded ? 'Chatting with Jason' : 'Press Enter to start')}
+                  </div>
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={!inputValue.trim() || isLoading}
+                    className="text-white/50 hover:text-white text-xs px-2 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? 'Sending...' : 'Send'}
+                  </button>
+                </div>
+              </div>
+              {error && (
+                <div className="mt-2 text-xs text-red-400 text-center">
+                  {error}
+                </div>
+              )}
             </div>
           </div>
 
@@ -121,6 +203,12 @@ export default function Home() {
 
         </div>
       </main>
+
+      {/* Login Modal */}
+      <LoginModal
+        open={showLoginModal}
+        onOpenChange={setShowLoginModal}
+      />
     </div>
   )
 }
