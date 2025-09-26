@@ -1,13 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { openai, CHAT_CONFIG } from '@/lib/ai/openai-client'
 import { JASON_SYSTEM_PROMPT } from '@/lib/ai/jason-prompt'
+import OpenAI from 'openai'
 
 // Initialize Supabase client for server-side auth verification
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
+
+// Initialize OpenAI client inline to avoid import errors
+let openai: OpenAI | null = null
+try {
+  if (process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
+  }
+} catch (error) {
+  console.error('Failed to initialize OpenAI client:', error)
+}
+
+const CHAT_CONFIG = {
+  model: 'gpt-4o',
+  temperature: 0.7,
+  max_tokens: 2000,
+  stream: true,
+} as const
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
@@ -17,6 +36,12 @@ interface ChatMessage {
 
 export async function POST(req: NextRequest) {
   try {
+    // Check if OpenAI is properly initialized
+    if (!openai) {
+      console.error('OpenAI client not initialized - check OPENAI_API_KEY')
+      return NextResponse.json({ error: 'AI service unavailable' }, { status: 503 })
+    }
+
     // Get the authorization header
     const authHeader = req.headers.get('authorization')
     if (!authHeader?.startsWith('Bearer ')) {
@@ -102,4 +127,13 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+// Add GET method for debugging
+export async function GET() {
+  return NextResponse.json({
+    status: 'Chat API is running',
+    openaiConfigured: !!openai,
+    timestamp: new Date().toISOString()
+  })
 }
