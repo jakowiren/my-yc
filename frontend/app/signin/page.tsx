@@ -22,7 +22,7 @@ export default function SignInPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-violet-950 flex items-center justify-center">
+      <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 animate-spin rounded-full border-2 border-white/30 border-t-white mx-auto mb-4"></div>
           <p className="text-white">Loading...</p>

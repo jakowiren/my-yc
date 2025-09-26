@@ -54,7 +54,7 @@
     @apply border-border;
   }
   html, body {
-    @apply bg-slate-950 text-foreground;
+    @apply bg-black text-foreground;
   }
 }
 
