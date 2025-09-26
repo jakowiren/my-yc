@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Sparkles, Send, LogOut } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
+import { SignInDropdown } from "@/components/sign-in-dropdown"
 
 const examplePrompts = [
   "Build a SaaS for small businesses",
@@ -15,7 +16,7 @@ const examplePrompts = [
 ]
 
 export default function Home() {
-  const { user, loading, signIn, signOut } = useAuth()
+  const { user, loading, signOut } = useAuth()
   const [currentPrompt, setCurrentPrompt] = useState("")
   const [promptIndex, setPromptIndex] = useState(0)
   const [isTyping, setIsTyping] = useState(true)
@@ -87,12 +88,7 @@ export default function Home() {
                   </Button>
                 </div>
               ) : (
-                <Button
-                  onClick={signIn}
-                  className="bg-blue-600 hover:bg-blue-700 border-0"
-                >
-                  Sign In
-                </Button>
+                <SignInDropdown />
               )}
             </div>
           </nav>
