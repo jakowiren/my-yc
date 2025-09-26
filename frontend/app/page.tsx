@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Sparkles, Send, LogOut } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { SignInDropdown } from "@/components/sign-in-dropdown"
+import Link from "next/link"
 
 const examplePrompts = [
   "Build a SaaS for small businesses",
@@ -88,7 +88,11 @@ export default function Home() {
                   </Button>
                 </div>
               ) : (
-                <SignInDropdown />
+                <Link href="/signin">
+                  <Button className="bg-blue-600 hover:bg-blue-700 border-0">
+                    Sign In
+                  </Button>
+                </Link>
               )}
             </div>
           </nav>
