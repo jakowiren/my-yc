@@ -47,29 +47,19 @@ export default function Home() {
   }, [currentPrompt, promptIndex, isTyping])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-violet-950 relative overflow-hidden">
-      {/* Cosmic Background Elements */}
-      <div className="absolute inset-0">
-        {/* Deep space nebula clouds */}
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-violet-950/30 via-transparent to-purple-950/20"></div>
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-radial from-violet-900/10 via-purple-900/5 to-transparent rounded-full blur-3xl"></div>
-        <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-gradient-radial from-indigo-950/15 via-violet-950/8 to-transparent rounded-full blur-2xl"></div>
-        <div className="absolute top-1/2 left-2/3 w-64 h-64 bg-gradient-radial from-purple-950/12 via-slate-900/6 to-transparent rounded-full blur-xl"></div>
-        {/* Subtle cosmic dust overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/40"></div>
-      </div>
+    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-blue-900 to-rose-500 relative overflow-hidden">
 
       {/* Header */}
-      <header className="relative z-10 border-b border-violet-500/20 bg-slate-950/20 backdrop-blur-md">
+      <header className="relative z-10 border-b border-white/10 bg-black/20 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4">
           <nav className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <span className="text-2xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+              <span className="text-2xl font-bold text-white">
                 my-yc
               </span>
             </div>
             <div className="flex items-center space-x-4">
-              <Button className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 border-0 shadow-lg shadow-violet-500/25">
+              <Button className="bg-blue-600 hover:bg-blue-700 border-0">
                 Sign In
               </Button>
             </div>
@@ -78,31 +68,47 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="relative z-10 container mx-auto px-4 py-20">
-        <div className="max-w-2xl mx-auto">
+      <main className="relative z-10 container mx-auto px-6 py-16">
+        <div className="max-w-4xl mx-auto">
           {/* Hero */}
-          <div className="text-center mb-12">
-            <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-6 text-white">
-              Become your own
-              <br />
-              <span className="bg-gradient-to-r from-purple-300 via-pink-300 to-purple-300 bg-clip-text text-transparent">
-                investor
-              </span>
+          <div className="text-center mb-16">
+            <h1 className="text-6xl md:text-7xl font-bold tracking-tight mb-4 text-white">
+              Become your own investor
             </h1>
+            <p className="text-lg text-white/70 font-normal">
+              Create apps and websites by chatting with AI
+            </p>
           </div>
 
-          {/* Chat Interface */}
-          <div className="bg-slate-950/30 backdrop-blur-xl rounded-3xl border border-violet-500/30 shadow-2xl shadow-violet-900/20 max-w-2xl mx-auto">
-            {/* Chat Input */}
-            <div className="p-8">
-              <div className="flex space-x-4">
-                <Textarea
-                  placeholder={currentPrompt}
-                  className="flex-1 resize-none min-h-[80px] bg-slate-950/40 border-violet-500/30 text-white placeholder:text-violet-300 focus:border-violet-400 focus:ring-violet-400/50 text-lg backdrop-blur-sm"
-                />
-                <Button size="lg" className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 px-8 h-20 shadow-lg shadow-violet-500/25 border-0">
-                  <Send className="w-6 h-6" />
-                </Button>
+          {/* Input Interface */}
+          <div className="w-full max-w-3xl mx-auto">
+            <div className="bg-gray-900 rounded-2xl border border-gray-700 p-4">
+              <Textarea
+                placeholder={currentPrompt}
+                className="w-full resize-none min-h-[100px] bg-transparent border-0 text-white placeholder:text-gray-400 focus:ring-0 text-base leading-relaxed"
+              />
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-700">
+                <div className="flex items-center space-x-3">
+                  <button className="flex items-center space-x-1 px-2 py-1 bg-gray-800 rounded text-sm text-gray-300">
+                    <span>Public</span>
+                  </button>
+                  <button className="flex items-center space-x-1 px-2 py-1 bg-green-900/30 text-green-400 rounded text-sm">
+                    <span>⚡</span>
+                    <span>Supabase</span>
+                  </button>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button className="p-2 hover:bg-gray-800 rounded">
+                    <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  <button className="p-2 hover:bg-gray-800 rounded">
+                    <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
