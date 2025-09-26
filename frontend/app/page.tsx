@@ -22,6 +22,20 @@ export default function Home() {
   const [promptIndex, setPromptIndex] = useState(0)
   const [isTyping, setIsTyping] = useState(true)
 
+  // Cursor tracking for star
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const star = document.getElementById('cursor-star')
+      if (star) {
+        star.style.left = `${e.clientX - 2}px`
+        star.style.top = `${e.clientY - 2}px`
+      }
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => window.removeEventListener('mousemove', handleMouseMove)
+  }, [])
+
   useEffect(() => {
     let timeout: NodeJS.Timeout
 
@@ -52,78 +66,28 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Star Field */}
-      <div className="absolute inset-0">
-        {/* Static Stars - Different Sizes */}
-        {Array.from({ length: 100 }).map((_, i) => {
-          const size = Math.random() < 0.7 ? 'w-0.5 h-0.5' : Math.random() < 0.9 ? 'w-1 h-1' : 'w-1.5 h-1.5'
-          const opacity = Math.random() < 0.7 ? 'opacity-40' : Math.random() < 0.9 ? 'opacity-60' : 'opacity-80'
-          return (
-            <div
-              key={i}
-              className={`absolute ${size} bg-white rounded-full ${opacity}`}
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-              }}
-            />
-          )
-        })}
-
-        {/* Single Subtle Shooting Star */}
-        <div
-          className="absolute w-16 h-0.5 bg-gradient-to-r from-white/80 via-white/40 to-transparent rounded-full opacity-0 animate-shooting-star"
-          style={{
-            left: '-100px',
-            top: '20%',
-            transform: 'rotate(-30deg)',
-          }}
-        />
-      </div>
+      {/* Cursor Following Star */}
+      <div
+        id="cursor-star"
+        className="fixed w-1 h-1 bg-white rounded-full pointer-events-none z-50 opacity-60 transition-all duration-75 ease-out"
+        style={{ left: '-10px', top: '-10px' }}
+      />
 
       {/* Header */}
-      <header className="relative z-10 border-b border-white/10 bg-black/20 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4">
+      <header className="relative z-10 border-b border-white/5">
+        <div className="container mx-auto px-6 py-3">
           <nav className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <span className="text-2xl font-bold text-white">
-                my-yc
-              </span>
-            </div>
-            <div className="flex items-center space-x-4">
+            <span className="text-lg font-light text-white">my-yc</span>
+            <div className="flex items-center space-x-3">
               {loading ? (
-                <div className="w-8 h-8 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+                <div className="w-4 h-4 animate-spin rounded-full border border-white/30 border-t-white"></div>
               ) : user ? (
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center space-x-2">
-                    {user.user_metadata?.avatar_url && (
-                      <Image
-                        src={user.user_metadata.avatar_url}
-                        alt="Profile"
-                        width={32}
-                        height={32}
-                        className="w-8 h-8 rounded-full"
-                      />
-                    )}
-                    <span className="text-white text-sm">
-                      {user.user_metadata?.full_name || user.email}
-                    </span>
-                  </div>
-                  <Button
-                    onClick={signOut}
-                    variant="ghost"
-                    size="sm"
-                    className="text-white/70 hover:text-white hover:bg-white/10"
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </Button>
+                <div className="flex items-center space-x-2">
+                  <span className="text-white/70 text-sm">{user.user_metadata?.full_name || user.email}</span>
+                  <button onClick={signOut} className="text-white/50 hover:text-white text-sm">×</button>
                 </div>
               ) : (
-                <Link href="/signin">
-                  <Button className="bg-blue-600 hover:bg-blue-700 border-0">
-                    Sign In
-                  </Button>
-                </Link>
+                <Link href="/signin" className="text-white/70 hover:text-white text-sm">Sign In</Link>
               )}
             </div>
           </nav>
@@ -131,44 +95,24 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="relative z-10 container mx-auto px-6 py-16">
-        <div className="max-w-4xl mx-auto">
+      <main className="relative z-10 container mx-auto px-6 py-12">
+        <div className="max-w-2xl mx-auto">
           {/* Hero */}
-          <div className="text-center mb-16">
-            <h1 className="text-6xl md:text-7xl font-light tracking-wide mb-4 text-white">
+          <div className="text-center mb-12">
+            <h1 className="text-3xl font-light tracking-wide text-white">
               Become your own investor
             </h1>
           </div>
 
           {/* Input Interface */}
-          <div className="w-full max-w-3xl mx-auto">
-            <div className="bg-gray-900 rounded-2xl border border-gray-700 p-4">
+          <div className="w-full max-w-xl mx-auto">
+            <div className="bg-black border border-white/10 rounded-lg p-3">
               <Textarea
                 placeholder={currentPrompt}
-                className="w-full resize-none min-h-[100px] bg-transparent border-0 text-white placeholder:text-gray-400 focus:ring-0 text-base leading-relaxed"
+                className="w-full resize-none min-h-[60px] bg-transparent border-0 text-white placeholder:text-white/40 focus:ring-0 text-sm"
               />
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-700">
-                <div className="flex items-center space-x-3">
-                  <button className="flex items-center space-x-1 px-2 py-1 bg-gray-800 rounded text-sm text-gray-300">
-                    <span>Public</span>
-                  </button>
-                  <button className="flex items-center space-x-1 px-2 py-1 bg-green-900/30 text-green-400 rounded text-sm">
-                    <span>⚡</span>
-                    <span>Supabase</span>
-                  </button>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button className="p-2 hover:bg-gray-800 rounded">
-                    <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                  <button className="p-2 hover:bg-gray-800 rounded">
-                    <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
+              <div className="flex items-center justify-end mt-2">
+                <button className="text-white/50 hover:text-white text-xs px-2 py-1">Send</button>
               </div>
             </div>
           </div>
