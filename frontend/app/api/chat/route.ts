@@ -87,8 +87,9 @@ export async function POST(req: NextRequest) {
 
     // Parse the request body
     console.log('📝 Parsing request body...')
-    const { messages }: { messages: ChatMessage[] } = await req.json()
+    const { messages, startup_id }: { messages: ChatMessage[], startup_id?: string } = await req.json()
     console.log('- Messages received:', messages?.length || 0)
+    console.log('- Startup ID:', startup_id)
     console.log('- Messages preview:', messages?.slice(-2).map(m => ({ role: m.role, length: m.content?.length })))
 
     if (!messages || !Array.isArray(messages)) {

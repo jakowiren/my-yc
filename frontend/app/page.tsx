@@ -6,7 +6,10 @@ import { Sparkles, Send, LogOut } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { LoginModal } from "@/components/chat/LoginModal"
+import { StartupsList } from "@/components/startups/StartupsList"
 import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabase"
+import { StartupInsert } from "@/lib/types/supabase"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -57,11 +60,6 @@ export default function Home() {
   }, [currentPrompt, promptIndex, isTyping])
 
 
-  // Generate a simple conversation ID
-  const generateConversationId = () => {
-    return crypto.randomUUID ? crypto.randomUUID() : 'conv-' + Math.random().toString(36).substr(2, 9)
-  }
-
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return
 
@@ -70,10 +68,36 @@ export default function Home() {
       return
     }
 
-    // Navigate to dedicated chat page with initial message
-    const conversationId = generateConversationId()
-    const encodedMessage = encodeURIComponent(inputValue)
-    router.push(`/chat/${conversationId}?message=${encodedMessage}`)
+    try {
+      // Create new startup in Supabase first
+      const startupData: StartupInsert = {
+        user_id: user.id,
+        status: 'active'
+      }
+
+      const { data: startup, error } = await supabase
+        .from('startups')
+        .insert(startupData)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Failed to create startup:', error)
+        if (error.message.includes('Maximum of 5 active startups')) {
+          alert('You have reached the maximum of 5 startups. Please delete some old ones first.')
+          return
+        }
+        alert('Failed to create startup. Please try again.')
+        return
+      }
+
+      // Navigate to chat page using Supabase startup ID
+      const encodedMessage = encodeURIComponent(inputValue)
+      router.push(`/chat/${startup.id}?message=${encodedMessage}`)
+    } catch (error) {
+      console.error('Error creating startup:', error)
+      alert('Failed to create startup. Please try again.')
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -148,19 +172,7 @@ export default function Home() {
           {/* Your Startups Section */}
           <div className="w-full max-w-4xl mx-auto">
             <h2 className="text-xl font-light text-white mb-6">Your Startups</h2>
-
-            {!user ? (
-              <div className="text-center py-8">
-                <p className="text-white/60 text-sm">Log in to see your startups</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Project containers will be populated here */}
-                <div className="text-center py-12 col-span-full">
-                  <p className="text-white/40 text-sm">Your startups will appear here</p>
-                </div>
-              </div>
-            )}
+            <StartupsList />
           </div>
 
         </div>

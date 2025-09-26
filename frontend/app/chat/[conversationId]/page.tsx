@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Send } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { useChat } from "@/lib/hooks/use-chat"
+import { useStartup } from "@/lib/hooks/use-startup"
 import { ChatMessageComponent } from "@/components/chat/ChatMessage"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
@@ -20,24 +20,31 @@ export default function ChatPage({ params }: ChatPageProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user } = useAuth()
-  const { messages, isLoading, error, sendMessage, clearMessages } = useChat()
+  const { startup, messages, isLoading, error, sendMessage, loadStartup } = useStartup()
   const [inputValue, setInputValue] = useState("")
-  const [conversationTitle, setConversationTitle] = useState("New Conversation")
   const hasInitializedRef = useRef(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
 
-  // Get initial message from URL params
+  // Get startup ID from URL params (this is the Supabase startup ID)
+  const startupId = params.conversationId
   const initialMessage = searchParams.get('message')
 
-  // Send initial message when component mounts
+  // Load startup and messages when component mounts
   useEffect(() => {
-    if (initialMessage && !hasInitializedRef.current && user) {
+    if (startupId && user) {
+      loadStartup(startupId)
+    }
+  }, [startupId, user, loadStartup])
+
+  // Send initial message after startup is loaded
+  useEffect(() => {
+    if (initialMessage && !hasInitializedRef.current && startup && user) {
       console.log('📤 Sending initial message:', initialMessage)
       hasInitializedRef.current = true
       sendMessage(initialMessage)
     }
-  }, [initialMessage, user, sendMessage])
+  }, [initialMessage, startup, user, sendMessage])
 
   // Auto scroll to bottom when new messages arrive
   useEffect(() => {
@@ -76,9 +83,9 @@ export default function ChatPage({ params }: ChatPageProps) {
             <Link href="/" className="text-white/70 hover:text-white">
               <ArrowLeft size={20} />
             </Link>
-            <h1 className="text-xl font-light">{conversationTitle}</h1>
+            <h1 className="text-xl font-light">{startup?.title || "New Startup"}</h1>
           </div>
-          <span className="text-white/50 text-sm">Conversation {params.conversationId.slice(0, 8)}</span>
+          <span className="text-white/50 text-sm">Startup {startupId.slice(0, 8)}</span>
         </div>
       </header>
 
