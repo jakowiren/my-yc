@@ -159,9 +159,9 @@ export async function POST(req: NextRequest) {
         } catch (error) {
           console.error('❌ Streaming error:', error)
           console.error('Error details:', {
-            name: error.name,
-            message: error.message,
-            stack: error.stack
+            name: error instanceof Error ? error.name : 'Unknown',
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : 'No stack trace'
           })
           // Send error message before closing
           const errorData = `data: ${JSON.stringify({ error: 'Streaming failed' })}\n\n`
@@ -184,9 +184,9 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('❌ CHAT API ERROR:', error)
     console.error('Error details:', {
-      name: error?.name,
-      message: error?.message,
-      stack: error?.stack
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : 'No stack trace'
     })
     console.log('=== CHAT API REQUEST FAILED ===')
 
