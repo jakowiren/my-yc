@@ -57,3 +57,17 @@
     @apply bg-slate-950 text-foreground;
   }
 }
+
+@keyframes shooting-star {
+  0% {
+    opacity: 0;
+    transform: translateX(-100px) translateY(-100px) rotate(-45deg);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(300px) translateY(300px) rotate(-45deg);
+  }
+}

@@ -105,13 +105,9 @@ export default function SignInPage() {
 
           {/* Footer */}
           <div className="text-center">
-            <p className="text-violet-400 text-sm">
-              Don&apos;t have an account?{' '}
-              <span className="text-violet-300">Sign up automatically on first sign in</span>
-            </p>
             <Link
               href="/"
-              className="inline-block mt-4 text-violet-300 hover:text-white text-sm transition-colors"
+              className="inline-block text-violet-300 hover:text-white text-sm transition-colors"
             >
               ← Back to home
             </Link>

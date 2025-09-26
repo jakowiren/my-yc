@@ -51,7 +51,36 @@ export default function Home() {
   }, [currentPrompt, promptIndex, isTyping])
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-blue-900 to-rose-500 relative overflow-hidden">
+    <div className="min-h-screen bg-black relative overflow-hidden">
+      {/* Star Field */}
+      <div className="absolute inset-0">
+        {/* Tiny Stars */}
+        {Array.from({ length: 200 }).map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-0.5 h-0.5 bg-white rounded-full opacity-60"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 3}s`,
+            }}
+          />
+        ))}
+
+        {/* Shooting Stars */}
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div
+            key={`shooting-${i}`}
+            className="absolute w-1 h-0.5 bg-gradient-to-r from-white to-transparent rounded-full opacity-0 animate-shooting-star"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 50}%`,
+              animationDelay: `${i * 8 + Math.random() * 5}s`,
+              transform: `rotate(-45deg)`,
+            }}
+          />
+        ))}
+      </div>
 
       {/* Header */}
       <header className="relative z-10 border-b border-white/10 bg-black/20 backdrop-blur-sm">
@@ -107,12 +136,9 @@ export default function Home() {
         <div className="max-w-4xl mx-auto">
           {/* Hero */}
           <div className="text-center mb-16">
-            <h1 className="text-6xl md:text-7xl font-bold tracking-tight mb-4 text-white">
+            <h1 className="text-6xl md:text-7xl font-light tracking-wide mb-4 text-white">
               Become your own investor
             </h1>
-            <p className="text-lg text-white/70 font-normal">
-              Create apps and websites by chatting with AI
-            </p>
           </div>
 
           {/* Input Interface */}
