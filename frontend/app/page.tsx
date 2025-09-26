@@ -2,8 +2,9 @@
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Sparkles, Send } from "lucide-react"
+import { Sparkles, Send, LogOut } from "lucide-react"
 import { useState, useEffect } from "react"
+import { useAuth } from "@/lib/auth-context"
 
 const examplePrompts = [
   "Build a SaaS for small businesses",
@@ -14,6 +15,7 @@ const examplePrompts = [
 ]
 
 export default function Home() {
+  const { user, loading, signIn, signOut } = useAuth()
   const [currentPrompt, setCurrentPrompt] = useState("")
   const [promptIndex, setPromptIndex] = useState(0)
   const [isTyping, setIsTyping] = useState(true)
@@ -59,9 +61,39 @@ export default function Home() {
               </span>
             </div>
             <div className="flex items-center space-x-4">
-              <Button className="bg-blue-600 hover:bg-blue-700 border-0">
-                Sign In
-              </Button>
+              {loading ? (
+                <div className="w-8 h-8 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+              ) : user ? (
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2">
+                    {user.user_metadata?.avatar_url && (
+                      <img
+                        src={user.user_metadata.avatar_url}
+                        alt="Profile"
+                        className="w-8 h-8 rounded-full"
+                      />
+                    )}
+                    <span className="text-white text-sm">
+                      {user.user_metadata?.full_name || user.email}
+                    </span>
+                  </div>
+                  <Button
+                    onClick={signOut}
+                    variant="ghost"
+                    size="sm"
+                    className="text-white/70 hover:text-white hover:bg-white/10"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  onClick={signIn}
+                  className="bg-blue-600 hover:bg-blue-700 border-0"
+                >
+                  Sign In
+                </Button>
+              )}
             </div>
           </nav>
         </div>
