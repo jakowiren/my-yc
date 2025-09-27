@@ -597,7 +597,11 @@ await self.mcp_tools["git"].push_changes()
 - **Day 5**: Polish, documentation, deployment
 
 ### Next Phase Preview
-**Phase 3** will use these same MCP tools to enable **team agents** (Frontend Agent, Backend Agent, etc.) to collaborate in the shared workspace, with the CEO coordinating their efforts.
+**Phase 3** will use these same MCP tools to enable **team agents** (Frontend Agent, Backend Agent, etc.) to collaborate in the shared workspace, with the CEO coordinating their efforts. Phase 3 will also include:
+
+- **Workspace Retention Policies**: Automatic cleanup of inactive workspaces
+- **Resource Management**: Optimized storage and compute allocation
+- **Advanced Analytics**: Team performance metrics and insights
 
 ---
 

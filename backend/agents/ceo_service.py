@@ -225,17 +225,25 @@ async def get_ceo_status(startup_id: str):
             "error": str(e)
         }
 
-@app.function(image=image, timeout=30)
+@app.function(image=image, timeout=30, volumes={"/workspace": startup_workspaces})
 @modal.fastapi_endpoint(method="GET", label="health")
 async def health_check():
     """
     Health check endpoint.
     Stable endpoint: https://jakowiren--my-yc-ceo-health.modal.run
     """
+    import os
+    workspace_count = 0
+    try:
+        if os.path.exists("/workspace"):
+            workspace_count = len([d for d in os.listdir("/workspace") if os.path.isdir(os.path.join("/workspace", d))])
+    except Exception:
+        workspace_count = 0
+
     return {
         "status": "healthy",
         "service": "my-yc-ceo",
-        "active_ceos": len(ceo_instances)
+        "active_workspaces": workspace_count
     }
 
 if __name__ == "__main__":
