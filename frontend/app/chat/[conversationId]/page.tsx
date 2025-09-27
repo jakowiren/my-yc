@@ -20,7 +20,7 @@ interface ChatPageProps {
 export default function ChatPage({ params }: ChatPageProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const { startup, messages, isLoading, error, sendMessage, loadStartup } = useStartup()
   const [inputValue, setInputValue] = useState("")
   const [isStartingProject, setIsStartingProject] = useState(false)
@@ -81,14 +81,48 @@ export default function ChatPage({ params }: ChatPageProps) {
 
     setIsStartingProject(true)
     try {
-      // TODO: Call Supabase edge function to spawn project
       console.log('🚀 Starting project for startup:', startup.id)
 
-      // For now, just show a placeholder
-      alert('Project spawning will be implemented in the next step!')
+      // Call Supabase edge function to spawn project
+      const response = await fetch('/api/spawn-project', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || ''}`,
+        },
+        body: JSON.stringify({
+          startup_id: startup.id
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to start project')
+      }
+
+      console.log('✅ Project spawn result:', result)
+
+      // Reload startup to get updated status
+      if (startup.id) {
+        await loadStartup(startup.id)
+      }
+
+      // Show success message with GitHub link if available
+      if (result.github_url) {
+        const viewRepo = confirm(
+          `🎉 ${result.message}\n\nRepository: ${result.repo_name}\n\nWould you like to view your new GitHub repository?`
+        )
+        if (viewRepo) {
+          window.open(result.github_url, '_blank')
+        }
+      } else {
+        alert(`🎉 ${result.message}`)
+      }
+
     } catch (error) {
       console.error('Failed to start project:', error)
-      alert('Failed to start project. Please try again.')
+      alert(`Failed to start project: ${error.message}`)
     } finally {
       setIsStartingProject(false)
     }
