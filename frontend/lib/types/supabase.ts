@@ -1,4 +1,7 @@
 // TypeScript types for Supabase database schema
+import { StartupDesignDoc } from '../ai/design-doc-template'
+
+export type ProjectStatus = 'designing' | 'design_ready' | 'spawning' | 'running' | 'completed' | 'error'
 
 export interface Startup {
   id: string
@@ -7,6 +10,12 @@ export interface Startup {
   status: 'active' | 'archived' | 'deleted'
   metadata: Record<string, any>
   conversation_context: Record<string, any>
+  design_doc: StartupDesignDoc | null
+  project_status: ProjectStatus
+  github_url: string | null
+  modal_project_id: string | null
+  spawned_at: string | null
+  error_details: string | null
   created_at: string
   updated_at: string
 }
@@ -26,6 +35,11 @@ export interface StartupInsert {
   status?: 'active' | 'archived' | 'deleted'
   metadata?: Record<string, any>
   conversation_context?: Record<string, any>
+  design_doc?: StartupDesignDoc | null
+  project_status?: ProjectStatus
+  github_url?: string | null
+  modal_project_id?: string | null
+  error_details?: string | null
 }
 
 export interface MessageInsert {
@@ -40,6 +54,11 @@ export interface StartupUpdate {
   status?: 'active' | 'archived' | 'deleted'
   metadata?: Record<string, any>
   conversation_context?: Record<string, any>
+  design_doc?: StartupDesignDoc | null
+  project_status?: ProjectStatus
+  github_url?: string | null
+  modal_project_id?: string | null
+  error_details?: string | null
 }
 
 export interface Database {

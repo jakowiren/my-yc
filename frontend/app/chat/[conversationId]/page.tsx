@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useStartup } from "@/lib/hooks/use-startup"
 import { ChatMessageComponent } from "@/components/chat/ChatMessage"
+import { DesignDocument } from "@/components/chat/DesignDocument"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 
@@ -22,6 +23,7 @@ export default function ChatPage({ params }: ChatPageProps) {
   const { user } = useAuth()
   const { startup, messages, isLoading, error, sendMessage, loadStartup } = useStartup()
   const [inputValue, setInputValue] = useState("")
+  const [isStartingProject, setIsStartingProject] = useState(false)
   const hasInitializedRef = useRef(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -74,6 +76,24 @@ export default function ChatPage({ params }: ChatPageProps) {
     }
   }
 
+  const handleStartProject = async () => {
+    if (!startup?.design_doc) return
+
+    setIsStartingProject(true)
+    try {
+      // TODO: Call Supabase edge function to spawn project
+      console.log('🚀 Starting project for startup:', startup.id)
+
+      // For now, just show a placeholder
+      alert('Project spawning will be implemented in the next step!')
+    } catch (error) {
+      console.error('Failed to start project:', error)
+      alert('Failed to start project. Please try again.')
+    } finally {
+      setIsStartingProject(false)
+    }
+  }
+
   return (
     <div className="h-screen bg-black text-white flex flex-col">
       {/* Fixed Header */}
@@ -108,6 +128,20 @@ export default function ChatPage({ params }: ChatPageProps) {
                 </div>
               </div>
             )}
+
+            {/* Design Document Display */}
+            {startup?.design_doc && (
+              <div className="mt-6">
+                <DesignDocument
+                  designDoc={startup.design_doc}
+                  projectStatus={startup.project_status}
+                  githubUrl={startup.github_url}
+                  onStartProject={handleStartProject}
+                  isStarting={isStartingProject}
+                />
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
         </div>

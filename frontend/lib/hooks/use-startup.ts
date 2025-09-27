@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { supabase } from '@/lib/supabase'
 import { Startup, Message, MessageInsert } from '@/lib/types/supabase'
+import { StartupDesignDoc } from '@/lib/ai/design-doc-template'
 
 export interface ChatMessage {
   id: string
@@ -207,11 +208,34 @@ export function useStartup(): UseStartupReturn {
               if (parsed.content) {
                 assistantContent += parsed.content
 
-                // Update the assistant message with accumulated content
+                // Filter out DESIGN_DOC_FINAL lines from display
+                let displayContent = assistantContent
+                const designDocIndex = displayContent.indexOf('DESIGN_DOC_FINAL:')
+                if (designDocIndex !== -1) {
+                  // Find the end of the JSON object
+                  let braceCount = 0
+                  let jsonStart = displayContent.indexOf('{', designDocIndex)
+                  if (jsonStart !== -1) {
+                    let jsonEnd = jsonStart
+                    for (let i = jsonStart; i < displayContent.length; i++) {
+                      if (displayContent[i] === '{') braceCount++
+                      if (displayContent[i] === '}') braceCount--
+                      if (braceCount === 0) {
+                        jsonEnd = i
+                        break
+                      }
+                    }
+                    // Remove the entire DESIGN_DOC_FINAL section
+                    displayContent = displayContent.substring(0, designDocIndex) + displayContent.substring(jsonEnd + 1)
+                    displayContent = displayContent.trim()
+                  }
+                }
+
+                // Update the assistant message with filtered content
                 setMessages(prev =>
                   prev.map(msg =>
                     msg.id === assistantMessage.id
-                      ? { ...msg, content: assistantContent }
+                      ? { ...msg, content: displayContent }
                       : msg
                   )
                 )
@@ -232,6 +256,43 @@ export function useStartup(): UseStartupReturn {
                           setStartup(prev => prev ? { ...prev, title: suggestedTitle } : null)
                         }
                       })
+                  }
+                }
+
+                // Check for finalized design document
+                if (assistantContent.includes('DESIGN_DOC_FINAL:')) {
+                  try {
+                    const docMatch = assistantContent.match(/DESIGN_DOC_FINAL:\s*(\{[\s\S]*?\})/i)
+                    if (docMatch) {
+                      const designDocJson = docMatch[1]
+                      const designDoc: StartupDesignDoc = JSON.parse(designDocJson)
+
+                      console.log('📋 Design document finalized:', designDoc)
+
+                      // Update startup with design document and mark as ready
+                      supabase
+                        .from('startups')
+                        .update({
+                          design_doc: designDoc,
+                          project_status: 'design_ready',
+                          title: designDoc.title
+                        })
+                        .eq('id', startup.id)
+                        .then(({ error }) => {
+                          if (!error) {
+                            setStartup(prev => prev ? {
+                              ...prev,
+                              design_doc: designDoc,
+                              project_status: 'design_ready',
+                              title: designDoc.title
+                            } : null)
+                          } else {
+                            console.error('Failed to save design doc:', error)
+                          }
+                        })
+                    }
+                  } catch (e) {
+                    console.error('Failed to parse design document:', e)
                   }
                 }
               }
