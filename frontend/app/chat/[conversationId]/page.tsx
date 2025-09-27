@@ -122,7 +122,7 @@ export default function ChatPage({ params }: ChatPageProps) {
 
     } catch (error) {
       console.error('Failed to start project:', error)
-      alert(`Failed to start project: ${error.message}`)
+      alert(`Failed to start project: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setIsStartingProject(false)
     }
