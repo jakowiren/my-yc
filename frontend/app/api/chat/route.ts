@@ -97,6 +97,88 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 })
     }
 
+    // Check if we should route to CEO instead of Jason
+    if (startup_id) {
+      console.log('🤖 Checking if startup has CEO available...')
+
+      // Get startup from Supabase to check project status
+      const { data: startup, error: startupError } = await supabase
+        .from('startups')
+        .select('project_status, ceo_status, container_endpoint')
+        .eq('id', startup_id)
+        .eq('user_id', user.id)
+        .single()
+
+      if (startup && !startupError) {
+        console.log('📊 Startup status:', {
+          project_status: startup.project_status,
+          ceo_status: startup.ceo_status
+        })
+
+        // If startup has a CEO ready, route to CEO chat
+        if (startup.project_status === 'completed' && startup.ceo_status === 'ready') {
+          console.log('🤖 Routing to CEO chat...')
+
+          try {
+            // Get the last user message
+            const lastMessage = messages[messages.length - 1]
+            if (lastMessage?.role === 'user') {
+
+              // Call CEO Modal endpoint
+              const ceoResponse = await fetch('https://jakowiren--chat.modal.run', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  startup_id: startup_id,
+                  message: lastMessage.content
+                })
+              })
+
+              if (ceoResponse.ok) {
+                const ceoResult = await ceoResponse.json()
+
+                if (ceoResult.success) {
+                  console.log('✅ CEO response received')
+
+                  // Return CEO response as streaming format for compatibility
+                  const encoder = new TextEncoder()
+                  const readable = new ReadableStream({
+                    start(controller) {
+                      const data = `data: ${JSON.stringify({ content: ceoResult.response })}\n\n`
+                      controller.enqueue(encoder.encode(data))
+                      controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+                      controller.close()
+                    }
+                  })
+
+                  return new Response(readable, {
+                    headers: {
+                      'Content-Type': 'text/event-stream',
+                      'Cache-Control': 'no-cache',
+                      'Connection': 'keep-alive',
+                    },
+                  })
+                } else {
+                  console.error('❌ CEO response failed:', ceoResult.error)
+                }
+              } else {
+                console.error('❌ Failed to reach CEO:', ceoResponse.status)
+              }
+            }
+          } catch (error) {
+            console.error('❌ Error calling CEO:', error)
+          }
+
+          // Fall back to Jason if CEO fails
+          console.log('⚠️ CEO unavailable, falling back to Jason')
+        }
+      }
+    }
+
+    console.log('🎭 Using Jason AI for chat')
+
     // Ensure we have the system prompt at the beginning
     const systemMessage: ChatMessage = {
       role: 'system',

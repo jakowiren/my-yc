@@ -25,6 +25,9 @@ image = modal.Image.debian_slim(python_version="3.11").pip_install(
 ).add_local_file(
     local_path="workspace_manager.py",
     remote_path="/root/workspace_manager.py"
+).add_local_dir(
+    local_path="mcp_tools",
+    remote_path="/root/mcp_tools"
 )
 
 # Request/Response models will be defined inside functions to avoid import issues
@@ -151,8 +154,8 @@ async def chat_with_ceo(request_data: Dict[str, Any]):
 
         ceo = CEOAgent(startup_id, design_doc, workspace_mgr)
 
-        # Get CEO response (this will automatically save state)
-        response = await ceo.chat(message)
+        # Use the new MCP-powered work request handler
+        response = await ceo.handle_work_request(message)
 
         # Update workspace activity
         workspace_mgr.update_last_activity(startup_id)

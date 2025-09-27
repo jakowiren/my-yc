@@ -16,6 +16,8 @@ export interface Startup {
   modal_project_id: string | null
   spawned_at: string | null
   error_details: string | null
+  ceo_status: 'not_initialized' | 'initializing' | 'ready' | 'error' | null
+  container_endpoint: string | null
   created_at: string
   updated_at: string
 }

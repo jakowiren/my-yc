@@ -11,6 +11,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   timestamp: number
+  metadata?: Record<string, any>
 }
 
 interface UseStartupReturn {
@@ -72,6 +73,7 @@ export function useStartup(): UseStartupReturn {
           role: msg.role as 'user' | 'assistant',
           content: msg.content,
           timestamp: new Date(msg.created_at).getTime(),
+          metadata: msg.metadata || {}
         }))
 
       setMessages(chatMessages)
@@ -107,11 +109,15 @@ export function useStartup(): UseStartupReturn {
     setError(null)
 
     try {
+      // Determine current agent based on project status
+      const currentAgent = startup.project_status === 'completed' && startup.ceo_status === 'ready' ? 'ceo' : 'jason'
+
       // Save user message to database
       const userMessageData: MessageInsert = {
         startup_id: startup.id,
         role: 'user',
         content: content.trim(),
+        metadata: { agent: currentAgent }
       }
 
       const { error: userMessageError } = await supabase
@@ -188,6 +194,7 @@ export function useStartup(): UseStartupReturn {
                   startup_id: startup.id,
                   role: 'assistant',
                   content: assistantContent,
+                  metadata: { agent: currentAgent }
                 }
 
                 await supabase

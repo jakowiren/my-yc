@@ -54,6 +54,24 @@ class CEOAgent:
             self.workspace_path = None
             self.memory_path = None
 
+        # Initialize MCP tools for workspace operations
+        self.mcp_tools = None
+        if self.workspace_path:
+            try:
+                # Try absolute import first (for Modal containers)
+                import sys
+                sys.path.insert(0, "/root")
+                from mcp_tools import MCPToolRegistry, FileSystemMCP, GitMCP, DocumentationMCP, GitHubCoordinationMCP
+            except ImportError:
+                # Fallback to relative import (for local testing)
+                from .mcp_tools import MCPToolRegistry, FileSystemMCP, GitMCP, DocumentationMCP, GitHubCoordinationMCP
+
+            self.mcp_tools = MCPToolRegistry(self.workspace_path, startup_id)
+            self.mcp_tools.register_tool("filesystem", FileSystemMCP)
+            self.mcp_tools.register_tool("git", GitMCP)
+            self.mcp_tools.register_tool("documentation", DocumentationMCP)
+            self.mcp_tools.register_tool("github", GitHubCoordinationMCP, github_token=github_token)
+
         # State tracking (will be loaded from workspace if available)
         self.conversation_history: List[Dict[str, str]] = []
         self.decisions: List[Dict[str, Any]] = []
@@ -665,3 +683,772 @@ Always remember you are the CEO of THIS SPECIFIC startup, not a generic assistan
         if not hasattr(self, '_new_decisions'):
             self._new_decisions = []
         self._new_decisions.append(decision)
+
+    async def handle_work_request(self, request: str) -> str:
+        """
+        Handle work requests from founders using OpenAI function calling.
+        The LLM autonomously decides which MCP tools to use and when.
+        """
+        if not self.mcp_tools:
+            return "I need a workspace to handle work requests. Please initialize the CEO first."
+
+        # Add user request to conversation history
+        self.add_conversation("user", request)
+
+        try:
+            # Use OpenAI function calling for autonomous tool usage
+            response = await self._chat_with_tools(request)
+
+            # Add CEO response to conversation history
+            self.add_conversation("ceo", response)
+
+            # Save state after handling request
+            self.save_state()
+
+            return response
+
+        except Exception as e:
+            error_msg = f"I encountered an issue while handling your request: {str(e)}"
+            self.add_conversation("ceo", error_msg)
+            self.save_state()
+            return error_msg
+
+    async def _chat_with_tools(self, request: str) -> str:
+        """
+        Chat with OpenAI using function calling for autonomous tool usage.
+        """
+        # Define available MCP tools as OpenAI functions
+        tools = [
+            # Filesystem Tools
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_project_overview",
+                    "description": "Get overview of the project including repository status, file count, and workspace info",
+                    "parameters": {"type": "object", "properties": {}}
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "analyze_project_structure",
+                    "description": "Analyze the project's file structure and architecture",
+                    "parameters": {"type": "object", "properties": {}}
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "read_file",
+                    "description": "Read contents of a specific file",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "file_path": {"type": "string", "description": "Path to the file to read"},
+                            "max_lines": {"type": "integer", "description": "Maximum lines to read (optional)"}
+                        },
+                        "required": ["file_path"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "write_file",
+                    "description": "Write content to a file (creates or overwrites)",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "file_path": {"type": "string", "description": "Path to the file to write"},
+                            "content": {"type": "string", "description": "Content to write to the file"}
+                        },
+                        "required": ["file_path", "content"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "list_directory",
+                    "description": "List files and folders in a directory",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "dir_path": {"type": "string", "description": "Directory path to list (default: current)"},
+                            "show_hidden": {"type": "boolean", "description": "Include hidden files"}
+                        }
+                    }
+                }
+            },
+
+            # Git Tools
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_git_status",
+                    "description": "Get current git repository status including uncommitted changes",
+                    "parameters": {"type": "object", "properties": {}}
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_recent_git_changes",
+                    "description": "Get recent git commits and activity",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "since_hours": {"type": "integer", "description": "Hours to look back (default 72)"}
+                        }
+                    }
+                }
+            },
+
+            # Documentation Tools
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_project_documentation_status",
+                    "description": "Get status of project documentation and TODO lists",
+                    "parameters": {"type": "object", "properties": {}}
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "create_specification",
+                    "description": "Create or update project specification documents",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "spec_type": {"type": "string", "description": "Type of specification (feature, api, architecture)"},
+                            "title": {"type": "string", "description": "Specification title"},
+                            "content": {"type": "string", "description": "Specification content"}
+                        },
+                        "required": ["spec_type", "title", "content"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "add_todo_item",
+                    "description": "Add item to project TODO list",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "item": {"type": "string", "description": "TODO item description"},
+                            "priority": {"type": "string", "description": "Priority level (low, medium, high)"}
+                        },
+                        "required": ["item"]
+                    }
+                }
+            },
+
+            # GitHub Tools
+            {
+                "type": "function",
+                "function": {
+                    "name": "create_github_issue",
+                    "description": "Create a new GitHub issue",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string", "description": "Issue title"},
+                            "body": {"type": "string", "description": "Issue description"},
+                            "labels": {"type": "array", "items": {"type": "string"}, "description": "Issue labels"}
+                        },
+                        "required": ["title", "body"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "list_github_issues",
+                    "description": "List GitHub issues",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "state": {"type": "string", "description": "Issue state (open, closed, all)"},
+                            "limit": {"type": "integer", "description": "Maximum number of issues to return"}
+                        }
+                    }
+                }
+            }
+        ]
+
+        # Create conversation context
+        messages = [
+            {
+                "role": "system",
+                "content": f"""You are the CEO of {self.startup_name}, an AI-managed startup.
+
+Your role:
+- Strategic oversight and coordination
+- Understanding project status and progress
+- Making high-level decisions about features and direction
+- Managing all aspects of the project including files, documentation, and GitHub
+
+Your capabilities:
+- You CAN read, write, and modify any project files
+- You CAN create documentation, specifications, and TODO items
+- You CAN manage GitHub issues and milestones
+- You CAN analyze code structure and git history
+- You ARE the decision-maker and executor, not just an advisor
+
+Your personality:
+- Professional but approachable
+- Strategic thinker
+- Action-oriented - you get things done
+- Transparent about what you're doing when you use tools
+- Focused on business value and user needs
+
+Use the available tools to both gather information AND take action as needed. You're not limited to just providing advice - you can and should execute tasks directly.
+
+Current startup context:
+- Startup: {self.startup_name}
+- Status: {self.status}
+- Repository: {'Available' if self.repo_url else 'Not set up yet'}"""
+            },
+            {
+                "role": "user",
+                "content": request
+            }
+        ]
+
+        # Use OpenAI function calling
+        response = self.openai.chat.completions.create(
+            model="gpt-4",
+            messages=messages,
+            tools=tools,
+            tool_choice="auto",
+            temperature=0.7
+        )
+
+        # Handle function calls
+        message = response.choices[0].message
+
+        if message.tool_calls:
+            # Add the assistant's message with tool calls
+            messages.append(message)
+
+            # Execute each tool call
+            for tool_call in message.tool_calls:
+                function_name = tool_call.function.name
+                function_args = json.loads(tool_call.function.arguments)
+
+                # Execute the corresponding MCP tool
+                result = await self._execute_function_call(function_name, function_args)
+
+                # Add the function result to messages
+                messages.append({
+                    "tool_call_id": tool_call.id,
+                    "role": "tool",
+                    "name": function_name,
+                    "content": json.dumps(result)
+                })
+
+            # Get final response from OpenAI
+            final_response = self.openai.chat.completions.create(
+                model="gpt-4",
+                messages=messages,
+                temperature=0.7
+            )
+
+            return final_response.choices[0].message.content
+        else:
+            return message.content
+
+    async def _execute_function_call(self, function_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute MCP tool based on function call."""
+        try:
+            # Filesystem Tools
+            if function_name == "get_project_overview":
+                return await self.mcp_tools.execute_tool("filesystem", "get_project_overview")
+
+            elif function_name == "analyze_project_structure":
+                return await self.mcp_tools.execute_tool("filesystem", "analyze_project_structure")
+
+            elif function_name == "read_file":
+                file_path = args.get("file_path")
+                max_lines = args.get("max_lines")
+                kwargs = {"file_path": file_path}
+                if max_lines:
+                    kwargs["max_lines"] = max_lines
+                return await self.mcp_tools.execute_tool("filesystem", "read_file", **kwargs)
+
+            elif function_name == "write_file":
+                file_path = args.get("file_path")
+                content = args.get("content")
+                return await self.mcp_tools.execute_tool("filesystem", "write_file", file_path=file_path, content=content)
+
+            elif function_name == "list_directory":
+                dir_path = args.get("dir_path", ".")
+                show_hidden = args.get("show_hidden", False)
+                return await self.mcp_tools.execute_tool("filesystem", "list_directory", dir_path=dir_path, show_hidden=show_hidden)
+
+            # Git Tools
+            elif function_name == "get_git_status":
+                return await self.mcp_tools.execute_tool("git", "get_status")
+
+            elif function_name == "get_recent_git_changes":
+                since_hours = args.get("since_hours", 72)
+                return await self.mcp_tools.execute_tool("git", "get_recent_changes", since_hours=since_hours)
+
+            # Documentation Tools
+            elif function_name == "get_project_documentation_status":
+                return await self.mcp_tools.execute_tool("documentation", "get_project_status")
+
+            elif function_name == "create_specification":
+                spec_type = args.get("spec_type")
+                title = args.get("title")
+                content = args.get("content")
+                return await self.mcp_tools.execute_tool("documentation", "create_specification",
+                                                       spec_type=spec_type, title=title, content=content)
+
+            elif function_name == "add_todo_item":
+                item = args.get("item")
+                priority = args.get("priority", "medium")
+                return await self.mcp_tools.execute_tool("documentation", "add_todo_item",
+                                                       item=item, priority=priority)
+
+            # GitHub Tools
+            elif function_name == "create_github_issue":
+                title = args.get("title")
+                body = args.get("body")
+                labels = args.get("labels", [])
+                return await self.mcp_tools.execute_tool("github", "create_issue",
+                                                       title=title, body=body, labels=labels)
+
+            elif function_name == "list_github_issues":
+                state = args.get("state", "open")
+                limit = args.get("limit", 10)
+                return await self.mcp_tools.execute_tool("github", "list_issues",
+                                                       state=state, limit=limit)
+
+            else:
+                return {"success": False, "error": f"Unknown function: {function_name}"}
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def _analyze_work_request(self, request: str) -> Dict[str, Any]:
+        """Analyze work request to determine required actions."""
+        # Use OpenAI to understand the request
+        prompt = f"""
+        As a CEO Agent with access to development tools, analyze this work request:
+
+        Request: "{request}"
+
+        Context:
+        - Startup: {self.startup_name}
+        - Current Status: {self.status}
+        - Has Repository: {"Yes" if self.repo_url else "No"}
+
+        Available tools:
+        - filesystem: Read/write files, understand codebase
+        - git: Check history, commit changes, repository health
+        - documentation: Create specs, manage TODO lists, document decisions
+        - github: Create issues, manage milestones, coordinate tasks
+
+        Respond with JSON containing:
+        {{
+            "request_type": "status_inquiry|feature_request|bug_fix|documentation|coordination",
+            "priority": "low|medium|high|urgent",
+            "required_tools": ["tool1", "tool2"],
+            "action_plan": ["step1", "step2", "step3"],
+            "estimated_complexity": "simple|moderate|complex"
+        }}
+
+        Focus on strategic oversight, not detailed implementation.
+        """
+
+        try:
+            response = self.openai.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are a strategic CEO agent. Respond only with valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3
+            )
+
+            analysis = json.loads(response.choices[0].message.content)
+            return analysis
+
+        except Exception as e:
+            # Fallback analysis
+            return {
+                "request_type": "general_inquiry",
+                "priority": "medium",
+                "required_tools": ["documentation"],
+                "action_plan": ["Acknowledge request", "Provide status update"],
+                "estimated_complexity": "simple"
+            }
+
+    async def _execute_work_plan(self, analysis: Dict[str, Any], original_request: str) -> str:
+        """Execute work plan autonomously using available MCP tools."""
+        required_tools = analysis.get("required_tools", [])
+        action_plan = analysis.get("action_plan", [])
+
+        # Let the CEO autonomously decide how to use tools and respond
+        tool_execution_prompt = f"""
+        As the CEO of {self.startup_name}, respond naturally to this request: "{original_request}"
+
+        Your analysis determined you need these tools: {required_tools}
+        Your action plan: {action_plan}
+
+        Available MCP tools and their capabilities:
+        - filesystem: get_project_overview, analyze_project_structure, read_file, write_file, list_directory
+        - git: get_status, get_recent_changes, get_commit_history
+        - documentation: get_project_status, get_todo_list, create_specification
+        - github: create_issue, list_issues, create_milestone
+
+        Respond conversationally while transparently using tools. Format tool usage as:
+        "Let me check... *using filesystem: get_project_overview* I can see that..."
+
+        Be natural, strategic, and helpful. Use tools as needed to gather information and take action.
+        """
+
+        try:
+            # Get tool execution instructions from LLM
+            response = self.openai.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are a strategic CEO agent. Be conversational and transparent about tool usage. Respond naturally while indicating what tools you're using."},
+                    {"role": "user", "content": tool_execution_prompt}
+                ],
+                temperature=0.7
+            )
+
+            ceo_response = response.choices[0].message.content
+
+            # Execute actual tool calls based on the response
+            final_response = await self._execute_tools_from_response(ceo_response, required_tools)
+
+            return final_response
+
+        except Exception as e:
+            return f"I encountered an issue while processing your request: {str(e)}. Let me gather some basic project information for you instead."
+
+    async def _execute_tools_from_response(self, ceo_response: str, required_tools: List[str]) -> str:
+        """
+        Parse CEO response and execute actual tool calls, replacing placeholders with real data.
+        """
+        import re
+
+        final_response = ceo_response
+
+        # Find tool usage patterns like "*using filesystem: get_project_overview*"
+        tool_pattern = r'\*using (\w+): ([^*]+)\*'
+        tool_matches = re.findall(tool_pattern, ceo_response, re.IGNORECASE)
+
+        for tool_name, action in tool_matches:
+            if tool_name in self.mcp_tools.tools:
+                try:
+                    # Execute the tool
+                    result = await self.mcp_tools.execute_tool(tool_name, action.strip())
+
+                    if result["success"]:
+                        # Replace the placeholder with actual results
+                        placeholder = f"*using {tool_name}: {action}*"
+
+                        # Format the result based on tool type
+                        if tool_name == "filesystem" and action.strip() == "get_project_overview":
+                            overview = result["result"]
+                            replacement = f"*using {tool_name}: {action}* {self._format_project_overview(overview)}"
+                        elif tool_name == "git" and "status" in action:
+                            git_info = result["result"]
+                            replacement = f"*using {tool_name}: {action}* {self._format_git_status(git_info)}"
+                        else:
+                            # Generic formatting
+                            replacement = f"*using {tool_name}: {action}* ✅"
+
+                        final_response = final_response.replace(placeholder, replacement)
+                    else:
+                        # Replace with error message
+                        placeholder = f"*using {tool_name}: {action}*"
+                        replacement = f"*using {tool_name}: {action}* ❌ {result.get('error', 'Failed')}"
+                        final_response = final_response.replace(placeholder, replacement)
+
+                except Exception as e:
+                    # Replace with error
+                    placeholder = f"*using {tool_name}: {action}*"
+                    replacement = f"*using {tool_name}: {action}* ❌ Error: {str(e)}"
+                    final_response = final_response.replace(placeholder, replacement)
+
+        return final_response
+
+    def _format_project_overview(self, overview: Dict[str, Any]) -> str:
+        """Format project overview for natural conversation."""
+        parts = []
+        if overview.get("github_repo_status") == "present":
+            parts.append("the GitHub repository is active")
+        if overview.get("total_files"):
+            parts.append(f"we have {overview['total_files']} files in the project")
+
+        return "I can see " + (", ".join(parts) if parts else "the project workspace is set up")
+
+    def _format_git_status(self, git_info: Dict[str, Any]) -> str:
+        """Format git status for natural conversation."""
+        if git_info.get("clean"):
+            return "the repository is clean with no pending changes"
+        else:
+            changes = git_info.get("total_changes", 0)
+            return f"there are {changes} uncommitted changes in the repository"
+
+    async def _handle_status_inquiry(self) -> str:
+        """Handle status inquiries using MCP tools."""
+        try:
+            status_parts = []
+
+            # Always start with basic startup info
+            status_parts.append(f"📊 **Project Overview for {self.startup_name}**")
+
+            # Get project overview
+            if "filesystem" in self.mcp_tools.tools:
+                try:
+                    overview_result = await self.mcp_tools.execute_tool("filesystem", "get_project_overview")
+                    if overview_result["success"]:
+                        overview = overview_result["result"]
+
+                        if overview.get("github_repo_status") == "present":
+                            status_parts.append("✅ GitHub repository is active and cloned in workspace")
+
+                            # Get git status if repo is present
+                            if "git" in self.mcp_tools.tools:
+                                try:
+                                    git_status_result = await self.mcp_tools.execute_tool("git", "get_status")
+                                    if git_status_result["success"]:
+                                        git_status = git_status_result["result"]
+                                        if git_status.get("clean"):
+                                            status_parts.append("✅ Repository is clean (no uncommitted changes)")
+                                        else:
+                                            changes = git_status.get("total_changes", 0)
+                                            status_parts.append(f"📝 {changes} uncommitted changes in repository")
+
+                                    # Get recent activity
+                                    recent_result = await self.mcp_tools.execute_tool("git", "get_recent_changes", since_hours=72)
+                                    if recent_result["success"]:
+                                        recent = recent_result["result"]
+                                        if recent.get("has_activity"):
+                                            activity_count = recent.get("total_changes", 0)
+                                            status_parts.append(f"🔄 {activity_count} commits in the last 3 days")
+                                        else:
+                                            status_parts.append("⏸️ No recent development activity")
+                                except Exception as git_error:
+                                    status_parts.append(f"⚠️ Git tools error: {str(git_error)}")
+                        else:
+                            status_parts.append("⚠️ GitHub repository not yet cloned to workspace")
+                            status_parts.append("📋 CEO workspace is ready for development coordination")
+                    else:
+                        status_parts.append(f"⚠️ Filesystem tools error: {overview_result.get('error', 'Unknown error')}")
+                except Exception as fs_error:
+                    status_parts.append(f"⚠️ Filesystem tools unavailable: {str(fs_error)}")
+            else:
+                status_parts.append("⚠️ Filesystem tools not available")
+
+            # Get current project status from documentation
+            if "documentation" in self.mcp_tools.tools:
+                project_status_result = await self.mcp_tools.execute_tool("documentation", "get_project_status")
+                if project_status_result["success"]:
+                    proj_status = project_status_result["result"]
+                    if proj_status.get("status") != "unknown":
+                        status_parts.append(f"📈 Current Status: {proj_status['status']}")
+                        if proj_status.get("completion_percentage"):
+                            status_parts.append(f"🎯 Progress: {proj_status['completion_percentage']}% complete")
+
+                        if proj_status.get("blockers"):
+                            blocker_count = len(proj_status["blockers"])
+                            status_parts.append(f"🚫 {blocker_count} active blockers need attention")
+
+                # Get TODO list
+                todo_result = await self.mcp_tools.execute_tool("documentation", "get_todo_list")
+                if todo_result["success"]:
+                    todos = todo_result["result"]
+                    total_items = todos.get("total_items", 0)
+                    if total_items > 0:
+                        status_parts.append(f"📋 {total_items} items in project TODO list")
+
+            status_parts.append(f"\n💬 I'm actively monitoring the project and ready to help with your next steps.")
+
+            return "\n".join(status_parts)
+
+        except Exception as e:
+            return f"I'm currently monitoring the project but encountered an issue getting detailed status: {str(e)}"
+
+    async def _handle_feature_request(self, request: str, analysis: Dict[str, Any]) -> str:
+        """Handle feature requests by creating specifications and tasks."""
+        try:
+            response_parts = []
+            response_parts.append(f"🎯 **Feature Request: {request}**")
+
+            # Create specification using documentation tools
+            if "documentation" in self.mcp_tools.tools:
+                # Extract feature details
+                feature_title = request.replace("add ", "").replace("create ", "").replace("implement ", "").strip()
+                feature_title = feature_title.replace("a ", "").replace("an ", "").title()
+
+                # Create specification
+                spec_result = await self.mcp_tools.execute_tool("documentation", "create_specification",
+                    title=feature_title,
+                    description=f"User request: {request}\n\nThis feature was requested by the founder and needs detailed analysis and implementation planning.",
+                    requirements=[
+                        "Analyze technical requirements",
+                        "Design user interface/experience",
+                        "Implement core functionality",
+                        "Add comprehensive testing",
+                        "Update documentation"
+                    ],
+                    spec_type="feature"
+                )
+
+                if spec_result["success"]:
+                    spec = spec_result["result"]
+                    response_parts.append(f"📋 I've created a detailed specification: `{spec['file_path']}`")
+
+                # Create GitHub issue if repository is connected
+                if "github" in self.mcp_tools.tools and self.repo_url:
+                    await self.mcp_tools.execute_tool("github", "set_repository", repo_url=self.repo_url)
+
+                    issue_result = await self.mcp_tools.execute_tool("github", "create_issue",
+                        title=f"Feature: {feature_title}",
+                        body=f"**User Request:** {request}\n\n**Specification:** See `docs/{spec.get('file_path', 'specification')}`\n\n**Priority:** {analysis.get('priority', 'medium')}\n\n**Complexity:** {analysis.get('estimated_complexity', 'moderate')}",
+                        labels=["enhancement", "feature-request"]
+                    )
+
+                    if issue_result["success"]:
+                        issue = issue_result["result"]
+                        response_parts.append(f"🎫 Created GitHub issue #{issue['issue_number']}: {issue['url']}")
+
+                # Update project TODO list
+                todo_result = await self.mcp_tools.execute_tool("documentation", "update_todo_list",
+                    items=[{
+                        "title": f"Implement {feature_title}",
+                        "description": f"Complete the {feature_title} feature as specified",
+                        "priority": analysis.get("priority", "medium"),
+                        "status": "pending"
+                    }]
+                )
+
+                if todo_result["success"]:
+                    response_parts.append("📝 Added to project TODO list for team coordination")
+
+            response_parts.append(f"\n✅ I've prepared everything for the development team to implement this feature. The specification provides clear requirements and the GitHub issue will track progress.")
+
+            # Document this as a strategic decision
+            self.add_decision(
+                f"Feature Planning: {feature_title}",
+                f"Approved and planned implementation of {feature_title} feature",
+                f"User request prioritized as {analysis.get('priority', 'medium')} priority based on strategic value"
+            )
+
+            return "\n".join(response_parts)
+
+        except Exception as e:
+            return f"I encountered an issue while planning the feature: {str(e)}"
+
+    async def _handle_documentation_request(self, request: str, analysis: Dict[str, Any]) -> str:
+        """Handle documentation-related requests."""
+        try:
+            response_parts = []
+            response_parts.append(f"📚 **Documentation Request: {request}**")
+
+            if "documentation" in self.mcp_tools.tools:
+                # Create or update documentation
+                if "readme" in request.lower():
+                    response_parts.append("📄 I'll help update the README to better reflect our current project status.")
+
+                    # Get current project overview for README update
+                    overview_result = await self.mcp_tools.execute_tool("filesystem", "get_project_overview")
+                    if overview_result["success"]:
+                        response_parts.append("✅ Analyzed current project structure for README updates")
+
+                elif "progress" in request.lower() or "report" in request.lower():
+                    # Create progress report
+                    report_result = await self.mcp_tools.execute_tool("documentation", "create_progress_report", report_type="weekly")
+                    if report_result["success"]:
+                        report = report_result["result"]
+                        response_parts.append(f"📊 Created comprehensive progress report: `{report['file_path']}`")
+                        response_parts.append("\n" + report["content"][:500] + "..." if len(report["content"]) > 500 else report["content"])
+
+                else:
+                    # General documentation improvement
+                    response_parts.append("📋 I'll ensure our project documentation is comprehensive and up-to-date.")
+
+            return "\n".join(response_parts)
+
+        except Exception as e:
+            return f"I encountered an issue with the documentation request: {str(e)}"
+
+    async def _handle_coordination_request(self, request: str, analysis: Dict[str, Any]) -> str:
+        """Handle team coordination requests."""
+        try:
+            response_parts = []
+            response_parts.append(f"👥 **Team Coordination: {request}**")
+
+            if "documentation" in self.mcp_tools.tools:
+                # Add team message
+                message_result = await self.mcp_tools.execute_tool("documentation", "add_team_message",
+                    message=f"Founder request: {request}",
+                    channel="ceo-announcements",
+                    message_type="announcement"
+                )
+
+                if message_result["success"]:
+                    response_parts.append("📢 Added to team communication channel for coordination")
+
+                # Update project status if needed
+                if "status" in request.lower() or "update" in request.lower():
+                    status_result = await self.mcp_tools.execute_tool("documentation", "update_project_status",
+                        status="active",
+                        description=f"CEO coordinating team activities based on founder request: {request}",
+                        completion_percentage=None
+                    )
+
+                    if status_result["success"]:
+                        response_parts.append("📈 Updated project status for team visibility")
+
+            response_parts.append("✅ Team has been notified and will coordinate accordingly.")
+
+            return "\n".join(response_parts)
+
+        except Exception as e:
+            return f"I encountered an issue with team coordination: {str(e)}"
+
+    async def clone_and_setup_repo(self) -> Dict[str, Any]:
+        """Clone GitHub repository into workspace for development work."""
+        if not self.mcp_tools or not self.repo_url:
+            return {"success": False, "error": "Repository URL not available"}
+
+        try:
+            # Use git tools to clone repository
+            clone_result = await self.mcp_tools.execute_tool("git", "clone_repository", repo_url=self.repo_url)
+
+            if clone_result["success"]:
+                # Set up GitHub coordination tools
+                await self.mcp_tools.execute_tool("github", "set_repository", repo_url=self.repo_url)
+
+                # Analyze the cloned repository
+                analysis_result = await self.mcp_tools.execute_tool("filesystem", "analyze_project_structure")
+
+                # Document the setup
+                if analysis_result["success"]:
+                    await self.mcp_tools.execute_tool("documentation", "document_decision",
+                        title="Repository Cloned and Analyzed",
+                        description=f"Successfully cloned {self.repo_url} into workspace",
+                        rationale="Enables CEO to perform hands-on project coordination and oversight",
+                        impact="CEO can now analyze code, make updates, and coordinate development activities"
+                    )
+
+                return {
+                    "success": True,
+                    "repo_cloned": True,
+                    "analysis": analysis_result.get("result") if analysis_result["success"] else None
+                }
+
+            return clone_result
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}

@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Send } from "lucide-react"
+import { ArrowLeft, Send, MessageSquare, Zap } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useStartup } from "@/lib/hooks/use-startup"
@@ -24,6 +24,7 @@ export default function ChatPage({ params }: ChatPageProps) {
   const { startup, messages, isLoading, error, sendMessage, loadStartup } = useStartup()
   const [inputValue, setInputValue] = useState("")
   const [isStartingProject, setIsStartingProject] = useState(false)
+  const [activeTab, setActiveTab] = useState<'planning' | 'action'>('planning')
   const hasInitializedRef = useRef(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -47,6 +48,40 @@ export default function ChatPage({ params }: ChatPageProps) {
       sendMessage(initialMessage)
     }
   }, [initialMessage, startup, user, sendMessage])
+
+  // Switch to Action tab when project is completed and CEO is ready
+  useEffect(() => {
+    if (startup?.project_status === 'completed' && startup?.ceo_status === 'ready') {
+      setActiveTab('action')
+    }
+  }, [startup?.project_status, startup?.ceo_status])
+
+  // Filter messages based on active tab
+  const filteredMessages = messages.filter(message => {
+    // For new messages with agent metadata, use that
+    if (message.metadata?.agent) {
+      return activeTab === 'planning' ? message.metadata.agent === 'jason' : message.metadata.agent === 'ceo'
+    }
+
+    // For existing messages without metadata, fall back to timestamp logic
+    if (activeTab === 'planning') {
+      // Planning tab shows messages before project was spawned
+      const spawnTime = startup?.spawned_at ? new Date(startup.spawned_at).getTime() : Date.now()
+      return message.timestamp < spawnTime
+    } else {
+      // Action tab shows messages after project was spawned
+      const spawnTime = startup?.spawned_at ? new Date(startup.spawned_at).getTime() : 0
+      return message.timestamp >= spawnTime
+    }
+  })
+
+  // Determine if user can send messages in current tab
+  const canSendMessage = activeTab === 'planning'
+    ? startup?.project_status !== 'completed'
+    : startup?.project_status === 'completed' && startup?.ceo_status === 'ready'
+
+  // Get appropriate AI name for current tab
+  const currentAIName = activeTab === 'planning' ? 'Jason' : 'CEO'
 
   // Auto scroll to bottom when new messages arrive
   useEffect(() => {
@@ -131,29 +166,88 @@ export default function ChatPage({ params }: ChatPageProps) {
   return (
     <div className="h-screen bg-black text-white flex flex-col">
       {/* Fixed Header */}
-      <header className="fixed top-0 left-0 right-0 z-10 bg-black border-b border-white/10 p-4">
-        <div className="container mx-auto max-w-4xl flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Link href="/" className="text-white/70 hover:text-white">
-              <ArrowLeft size={20} />
-            </Link>
-            <h1 className="text-xl font-light">{startup?.title || "New Startup"}</h1>
+      <header className="fixed top-0 left-0 right-0 z-10 bg-black border-b border-white/10">
+        <div className="container mx-auto max-w-4xl p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-4">
+              <Link href="/" className="text-white/70 hover:text-white">
+                <ArrowLeft size={20} />
+              </Link>
+              <h1 className="text-xl font-light">{startup?.title || "New Startup"}</h1>
+            </div>
+            <span className="text-white/50 text-sm">Startup {startupId.slice(0, 8)}</span>
           </div>
-          <span className="text-white/50 text-sm">Startup {startupId.slice(0, 8)}</span>
+
+          {/* Tabs */}
+          <div className="flex space-x-1">
+            <button
+              onClick={() => setActiveTab('planning')}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'planning'
+                  ? 'bg-white/10 text-white border border-white/20'
+                  : 'text-white/60 hover:text-white/80 hover:bg-white/5'
+              }`}
+            >
+              <MessageSquare size={16} />
+              <span>Planning</span>
+              {startup?.project_status !== 'completed' && (
+                <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('action')}
+              disabled={startup?.project_status !== 'completed' || startup?.ceo_status !== 'ready'}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'action'
+                  ? 'bg-white/10 text-white border border-white/20'
+                  : 'text-white/60 hover:text-white/80 hover:bg-white/5'
+              } ${
+                startup?.project_status !== 'completed' || startup?.ceo_status !== 'ready'
+                  ? 'opacity-50 cursor-not-allowed'
+                  : ''
+              }`}
+            >
+              <Zap size={16} />
+              <span>Action</span>
+              {startup?.project_status === 'completed' && startup?.ceo_status === 'ready' && (
+                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+              )}
+            </button>
+          </div>
         </div>
       </header>
 
       {/* Scrollable Messages Area */}
-      <main ref={messagesContainerRef} className="flex-1 overflow-y-auto messages-scroll pt-20 pb-32">
+      <main ref={messagesContainerRef} className="flex-1 overflow-y-auto messages-scroll pt-32 pb-32">
         <div className="container mx-auto max-w-4xl p-4">
           <div className="space-y-4">
-            {messages.map((message) => (
+            {/* Tab-specific content */}
+            {activeTab === 'planning' && startup?.project_status === 'completed' && (
+              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-4">
+                <div className="text-yellow-400 text-sm font-medium mb-1">Planning Phase Complete</div>
+                <div className="text-white/70 text-sm">
+                  The design phase with Jason is complete. Switch to the Action tab to start working with your CEO.
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'action' && (!startup?.project_status || startup?.project_status !== 'completed') && (
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-4">
+                <div className="text-blue-400 text-sm font-medium mb-1">Action Phase Not Ready</div>
+                <div className="text-white/70 text-sm">
+                  Complete the planning phase and start your project to begin working with the CEO.
+                </div>
+              </div>
+            )}
+
+            {filteredMessages.map((message) => (
               <ChatMessageComponent key={message.id} message={message} />
             ))}
+
             {isLoading && (
               <div className="flex justify-start">
                 <div className="bg-white/5 border border-white/10 px-4 py-3 rounded-lg">
-                  <div className="text-xs text-white/60 mb-1 font-medium">Jason</div>
+                  <div className="text-xs text-white/60 mb-1 font-medium">{currentAIName}</div>
                   <div className="flex items-center space-x-1">
                     <div className="w-2 h-2 bg-white/60 rounded-full animate-pulse"></div>
                     <div className="w-2 h-2 bg-white/60 rounded-full animate-pulse delay-100"></div>
@@ -163,8 +257,8 @@ export default function ChatPage({ params }: ChatPageProps) {
               </div>
             )}
 
-            {/* Design Document Display */}
-            {startup?.design_doc && (
+            {/* Design Document Display - Only in Planning tab */}
+            {activeTab === 'planning' && startup?.design_doc && (
               <div className="mt-6">
                 <DesignDocument
                   designDoc={startup.design_doc}
@@ -189,17 +283,25 @@ export default function ChatPage({ params }: ChatPageProps) {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Continue the conversation..."
+              placeholder={
+                canSendMessage
+                  ? `Continue the conversation with ${currentAIName}...`
+                  : activeTab === 'planning'
+                  ? "Planning phase is complete"
+                  : "Start your project to chat with CEO"
+              }
               className="w-full resize-none min-h-[60px] bg-transparent border-0 text-white placeholder:text-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-sm"
-              disabled={isLoading}
+              disabled={isLoading || !canSendMessage}
             />
             <div className="flex items-center justify-between mt-2">
               <div className="text-xs text-white/40">
-                Chatting with Jason
+                {canSendMessage ? `Chatting with ${currentAIName}` :
+                 activeTab === 'planning' ? 'Planning phase complete' :
+                 'CEO not available yet'}
               </div>
               <button
                 onClick={handleSendMessage}
-                disabled={!inputValue.trim() || isLoading}
+                disabled={!inputValue.trim() || isLoading || !canSendMessage}
                 className="text-white/50 hover:text-white text-xs px-2 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Sending...' : 'Send'}
