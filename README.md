@@ -191,6 +191,113 @@ serve(async (req) => {
 - 🔄 **In Progress**: Supabase Edge Functions
 - 🔄 **Planned**: Database agent, deployment agent, email agent
 
+## 🔮 Future Plans: Persistent Virtual Companies
+
+### The Vision
+Transform each startup into a **persistent virtual software company** with autonomous AI agents that maintain identity, workspace, and memory across sessions. Not simulations - real teams producing real code.
+
+### Architecture Overview
+
+```
+Each Startup Gets:
+├── Persistent Workspace (Modal Volume)
+│   ├── /workspace/{startup_id}/
+│   │   ├── github_repo/      # Active codebase
+│   │   ├── docs/             # Documentation
+│   │   └── data/             # Databases, configs
+│   ├── /memory/
+│   │   ├── ceo/              # CEO identity & decisions
+│   │   ├── frontend_agent/   # Frontend agent state
+│   │   ├── backend_agent/    # Backend agent state
+│   │   └── team_chat/        # Inter-agent communication
+│   └── /mcp/
+│       └── config.json       # MCP tool configuration
+```
+
+### Key Features (Coming Soon)
+
+#### 🧠 **Persistent Identity**
+- Agents remember all conversations and context
+- Maintain personality and decision history
+- Learn from experience and improve over time
+
+#### 💼 **Real Workspaces**
+- Actual file systems with code and documentation
+- Git repositories agents actively develop
+- Shared workspace for team collaboration
+
+#### 🛠️ **MCP Tool Integration**
+- File editing capabilities in workspace
+- Git operations (commit, branch, merge)
+- Terminal access for build and test
+- Database operations
+
+#### 👥 **Autonomous Teams**
+- CEO spawns specialized agents based on needs
+- Frontend, Backend, Database, DevOps agents
+- Agents communicate and coordinate
+- Work continues even when founders are offline
+
+#### 📊 **Event-Driven Execution**
+- Agents sleep when idle (cost-effective)
+- Wake on founder messages or scheduled tasks
+- Daily standups and progress reports
+- Continuous integration and deployment
+
+### Implementation Roadmap
+
+**Phase 1: CEO Persistence** *(In Progress)*
+- ✅ CEO creates GitHub repositories
+- ✅ Team planning capability
+- 🔄 Persistent conversation memory
+- 🔄 Workspace initialization
+
+**Phase 2: Workspace Infrastructure**
+- Modal Volumes for persistent storage
+- State serialization/deserialization
+- MCP tool integration
+- File system operations
+
+**Phase 3: Agent Team**
+- Base persistent agent class
+- Specialized agent types
+- Inter-agent communication
+- Task distribution system
+
+**Phase 4: Autonomous Operations**
+- Scheduled work cycles
+- Code review processes
+- Continuous development
+- Self-improving capabilities
+
+### Technical Stack
+
+- **Storage**: Modal Volumes for persistent workspaces
+- **State Management**: JSON/JSONL for agent memories
+- **Tools**: MCP (Model Context Protocol) for file/git/terminal operations
+- **Orchestration**: Event-driven Modal functions
+- **Database**: Supabase for state snapshots and coordination
+
+### Why This Matters
+
+Traditional AI coding assistants are stateless and disconnected. Our virtual companies are:
+
+1. **Persistent**: They remember everything and maintain context
+2. **Autonomous**: They work independently toward goals
+3. **Collaborative**: Multiple agents coordinate like real teams
+4. **Productive**: They produce real code in real repositories
+5. **Scalable**: Hundreds of virtual companies, each in their own workspace
+
+### The Beautiful Part
+
+When a founder asks *"How's the project going?"*, the CEO can:
+- Look at actual code in the workspace
+- Check notes from team members
+- Review commit history
+- Show real progress
+
+It's not a simulation - it's a real virtual software company.
+
 ## 📄 License
 
 MIT License - Build the future freely.
