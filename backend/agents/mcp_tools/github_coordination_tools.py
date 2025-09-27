@@ -6,7 +6,7 @@ CEO-focused GitHub operations for task management and project coordination.
 import os
 from typing import Dict, Any, List, Optional
 from github import Github
-from .base_mcp import BaseMCPTool, MCPToolError
+from .base_mcp import BaseMCPTool, MCPToolError, openai_function
 
 
 class GitHubCoordinationMCP(BaseMCPTool):
@@ -52,6 +52,13 @@ class GitHubCoordinationMCP(BaseMCPTool):
 
         return await action_map[action](**kwargs)
 
+    @openai_function("set_repository", "Set the GitHub repository to work with", {
+        "type": "object",
+        "properties": {
+            "repo_url": {"type": "string", "description": "GitHub repository URL or owner/repo format"}
+        },
+        "required": ["repo_url"]
+    })
     async def set_repository(self, repo_url: str) -> Dict[str, Any]:
         """
         Set the GitHub repository to work with.
@@ -89,6 +96,17 @@ class GitHubCoordinationMCP(BaseMCPTool):
             self.log_activity("set_repository_error", {"repo_url": repo_url, "error": str(e)}, "error")
             raise MCPToolError(f"Failed to connect to repository: {str(e)}")
 
+    @openai_function("create_issue", "Create a GitHub issue for task tracking", {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string", "description": "Issue title"},
+            "body": {"type": "string", "description": "Issue description"},
+            "labels": {"type": "array", "items": {"type": "string"}, "description": "List of label names"},
+            "assignees": {"type": "array", "items": {"type": "string"}, "description": "List of GitHub usernames to assign"},
+            "milestone": {"type": "string", "description": "Milestone title or number"}
+        },
+        "required": ["title", "body"]
+    })
     async def create_issue(self, title: str, body: str, labels: List[str] = None,
                           assignees: List[str] = None, milestone: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -154,6 +172,15 @@ class GitHubCoordinationMCP(BaseMCPTool):
             self.log_activity("create_issue_error", {"title": title, "error": str(e)}, "error")
             raise MCPToolError(f"Failed to create issue: {str(e)}")
 
+    @openai_function("list_issues", "List repository issues with filtering", {
+        "type": "object",
+        "properties": {
+            "state": {"type": "string", "description": "Issue state", "enum": ["open", "closed", "all"], "default": "open"},
+            "labels": {"type": "array", "items": {"type": "string"}, "description": "Filter by labels"},
+            "assignee": {"type": "string", "description": "Filter by assignee"},
+            "max_issues": {"type": "integer", "description": "Maximum issues to return", "default": 20}
+        }
+    })
     async def list_issues(self, state: str = "open", labels: List[str] = None,
                          assignee: Optional[str] = None, max_issues: int = 20) -> Dict[str, Any]:
         """
@@ -269,6 +296,15 @@ class GitHubCoordinationMCP(BaseMCPTool):
             self.log_activity("update_issue_error", {"issue_number": issue_number, "error": str(e)}, "error")
             raise MCPToolError(f"Failed to update issue: {str(e)}")
 
+    @openai_function("create_milestone", "Create a project milestone", {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string", "description": "Milestone title"},
+            "description": {"type": "string", "description": "Milestone description"},
+            "due_date": {"type": "string", "description": "Due date in ISO format (YYYY-MM-DD)"}
+        },
+        "required": ["title", "description"]
+    })
     async def create_milestone(self, title: str, description: str,
                               due_date: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -442,6 +478,7 @@ class GitHubCoordinationMCP(BaseMCPTool):
             self.log_activity("add_topics_error", {"topics": topics, "error": str(e)}, "error")
             raise MCPToolError(f"Failed to add repository topics: {str(e)}")
 
+    @openai_function("get_repository_insights", "Get repository insights and analytics")
     async def get_repository_insights(self) -> Dict[str, Any]:
         """
         Get repository insights and analytics.
@@ -506,6 +543,7 @@ class GitHubCoordinationMCP(BaseMCPTool):
             self.log_activity("get_insights_error", {"error": str(e)}, "error")
             raise MCPToolError(f"Failed to get repository insights: {str(e)}")
 
+    @openai_function("setup_issue_templates", "Set up issue templates for better project organization")
     async def setup_issue_templates(self) -> Dict[str, Any]:
         """
         Set up issue templates for better project organization.

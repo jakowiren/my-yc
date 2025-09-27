@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List, Optional
-from .base_mcp import BaseMCPTool, MCPToolError
+from .base_mcp import BaseMCPTool, MCPToolError, openai_function
 
 
 class DocumentationMCP(BaseMCPTool):
@@ -40,6 +40,16 @@ class DocumentationMCP(BaseMCPTool):
 
         return await action_map[action](**kwargs)
 
+    @openai_function("create_specification", "Create detailed specification for future development", {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string", "description": "Specification title"},
+            "description": {"type": "string", "description": "Detailed description"},
+            "requirements": {"type": "array", "items": {"type": "string"}, "description": "List of requirements"},
+            "spec_type": {"type": "string", "description": "Type of spec (feature, api, database, etc.)", "default": "feature"}
+        },
+        "required": ["title", "description", "requirements"]
+    })
     async def create_specification(self, title: str, description: str,
                                  requirements: List[str], spec_type: str = "feature") -> Dict[str, Any]:
         """
@@ -195,6 +205,12 @@ class DocumentationMCP(BaseMCPTool):
             self.log_activity("update_todo_error", {"error": str(e)}, "error")
             raise MCPToolError(f"Failed to update TODO list: {str(e)}")
 
+    @openai_function("get_todo_list", "Get current TODO list with optional status filtering", {
+        "type": "object",
+        "properties": {
+            "status_filter": {"type": "string", "description": "Filter by status (pending, in_progress, completed)", "enum": ["pending", "in_progress", "completed"]}
+        }
+    })
     async def get_todo_list(self, status_filter: Optional[str] = None) -> Dict[str, Any]:
         """
         Get current TODO list.
@@ -235,6 +251,17 @@ class DocumentationMCP(BaseMCPTool):
             self.log_activity("get_todo_error", {"error": str(e)}, "error")
             raise MCPToolError(f"Failed to get TODO list: {str(e)}")
 
+    @openai_function("document_decision", "Document a strategic or technical decision", {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string", "description": "Decision title"},
+            "description": {"type": "string", "description": "What was decided"},
+            "rationale": {"type": "string", "description": "Why this decision was made"},
+            "impact": {"type": "string", "description": "Expected impact of the decision"},
+            "alternatives_considered": {"type": "array", "items": {"type": "string"}, "description": "Other options that were considered"}
+        },
+        "required": ["title", "description", "rationale", "impact"]
+    })
     async def document_decision(self, title: str, description: str, rationale: str,
                                impact: str, alternatives_considered: List[str] = None) -> Dict[str, Any]:
         """
@@ -313,6 +340,18 @@ class DocumentationMCP(BaseMCPTool):
             self.log_activity("document_decision_error", {"title": title, "error": str(e)}, "error")
             raise MCPToolError(f"Failed to document decision: {str(e)}")
 
+    @openai_function("create_team_task", "Create task for future team agents", {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string", "description": "Task title"},
+            "description": {"type": "string", "description": "Detailed task description"},
+            "task_type": {"type": "string", "description": "Type of task (development, testing, documentation, etc.)"},
+            "priority": {"type": "string", "description": "Task priority", "enum": ["low", "medium", "high", "urgent"], "default": "medium"},
+            "assigned_to": {"type": "string", "description": "Which agent type should handle this", "default": "TBD"},
+            "estimated_hours": {"type": "integer", "description": "Estimated work hours"}
+        },
+        "required": ["title", "description", "task_type"]
+    })
     async def create_team_task(self, title: str, description: str, task_type: str,
                               priority: str = "medium", assigned_to: str = "TBD",
                               estimated_hours: Optional[int] = None) -> Dict[str, Any]:
@@ -483,6 +522,7 @@ class DocumentationMCP(BaseMCPTool):
             self.log_activity("update_status_error", {"status": status, "error": str(e)}, "error")
             raise MCPToolError(f"Failed to update project status: {str(e)}")
 
+    @openai_function("get_project_status", "Get current project status and completion information")
     async def get_project_status(self) -> Dict[str, Any]:
         """Get current project status."""
         try:
@@ -506,6 +546,12 @@ class DocumentationMCP(BaseMCPTool):
             self.log_activity("get_status_error", {"error": str(e)}, "error")
             raise MCPToolError(f"Failed to get project status: {str(e)}")
 
+    @openai_function("create_progress_report", "Create comprehensive progress report for founder", {
+        "type": "object",
+        "properties": {
+            "report_type": {"type": "string", "description": "Type of report", "enum": ["daily", "weekly", "monthly"], "default": "weekly"}
+        }
+    })
     async def create_progress_report(self, report_type: str = "weekly") -> Dict[str, Any]:
         """
         Create comprehensive progress report for founder.

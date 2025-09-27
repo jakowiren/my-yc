@@ -109,6 +109,98 @@ async def initialize_ceo(request_data: Dict[str, Any]):
     image=image,
     secrets=[modal.Secret.from_name("my-yc-secrets")],
     timeout=60,
+    cpu=2,
+    memory=4096,
+    min_containers=1,  # Keep 1 container warm to avoid cold starts
+    volumes={"/workspace": startup_workspaces}
+)
+@modal.fastapi_endpoint(method="POST", label="chat-stream")
+async def chat_with_ceo_streaming(request_data: Dict[str, Any]):
+    """
+    Chat with CEO agent with streaming response.
+    Stable endpoint: https://jakowiren--my-yc-ceo-chat-stream.modal.run
+    """
+    try:
+        # Import modules inside the function
+        import sys
+        sys.path.insert(0, "/root")
+        from ceo_agent import CEOAgent
+        from workspace_manager import WorkspaceManager
+        from fastapi.responses import StreamingResponse
+        import json
+
+        startup_id = request_data.get("startup_id")
+        message = request_data.get("message")
+
+        if not startup_id or not message:
+            return {
+                "success": False,
+                "error": "startup_id and message are required"
+            }
+
+        print(f"💬 Streaming chat request for startup: {startup_id}")
+
+        # Initialize workspace manager
+        workspace_mgr = WorkspaceManager()
+
+        # Check if workspace exists
+        if not workspace_mgr.workspace_exists(startup_id):
+            return {
+                "success": False,
+                "error": "CEO not initialized for this startup. Please initialize first."
+            }
+
+        # Load CEO from workspace
+        workspace_info = workspace_mgr.get_workspace_info(startup_id)
+        design_doc = workspace_info["metadata"]["design_document"]
+
+        ceo = CEOAgent(startup_id, design_doc, workspace_mgr)
+
+        async def generate_stream():
+            """Generate Server-Sent Events stream."""
+            try:
+                async for chunk in ceo.handle_work_request_streaming(message):
+                    chunk_type = chunk.get("type", "content")
+                    content = chunk.get("content", "")
+
+                    if chunk_type == "content" and content:
+                        # Send content chunks
+                        yield f"data: {json.dumps({'content': content})}\n\n"
+                    elif chunk_type == "tool_execution":
+                        # Send tool execution updates
+                        yield f"data: {json.dumps({'tool_status': content})}\n\n"
+
+                # Send completion signal
+                yield f"data: [DONE]\n\n"
+
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+        # Update workspace activity
+        workspace_mgr.update_last_activity(startup_id)
+
+        return StreamingResponse(
+            generate_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "*"
+            }
+        )
+
+    except Exception as e:
+        print(f"❌ Streaming chat failed: {str(e)}")
+        return {
+            "success": False,
+            "error": f"Streaming chat failed: {str(e)}"
+        }
+
+@app.function(
+    image=image,
+    secrets=[modal.Secret.from_name("my-yc-secrets")],
+    timeout=60,
     volumes={"/workspace": startup_workspaces}
 )
 @modal.fastapi_endpoint(method="POST", label="chat")
@@ -154,8 +246,13 @@ async def chat_with_ceo(request_data: Dict[str, Any]):
 
         ceo = CEOAgent(startup_id, design_doc, workspace_mgr)
 
-        # Use the new MCP-powered work request handler
-        response = await ceo.handle_work_request(message)
+        # Use the new streaming MCP-powered work request handler
+        full_response = ""
+        async for chunk in ceo.handle_work_request_streaming(message):
+            if chunk.get("type") == "content":
+                full_response += chunk.get("content", "")
+
+        response = full_response
 
         # Update workspace activity
         workspace_mgr.update_last_activity(startup_id)
@@ -228,7 +325,12 @@ async def get_ceo_status(startup_id: str):
             "error": str(e)
         }
 
-@app.function(image=image, timeout=30, volumes={"/workspace": startup_workspaces})
+@app.function(
+    image=image,
+    timeout=30,
+    volumes={"/workspace": startup_workspaces},
+    min_containers=1  # Keep warm for health checks
+)
 @modal.fastapi_endpoint(method="GET", label="health")
 async def health_check():
     """
@@ -248,6 +350,18 @@ async def health_check():
         "service": "my-yc-ceo",
         "active_workspaces": workspace_count
     }
+
+@app.function(
+    image=image,
+    timeout=10,
+    min_containers=1  # Keep warm to reduce cold starts
+)
+@modal.fastapi_endpoint(method="GET", label="warmup")
+async def warmup():
+    """
+    Warmup endpoint to keep containers active.
+    """
+    return {"status": "warm", "timestamp": __import__("time").time()}
 
 if __name__ == "__main__":
     print("🚀 CEO Service ready for deployment")

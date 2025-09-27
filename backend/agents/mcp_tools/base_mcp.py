@@ -8,13 +8,34 @@ import json
 import asyncio
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Callable
 from abc import ABC, abstractmethod
+from functools import wraps
 
 
 class MCPToolError(Exception):
     """Base exception for MCP tool operations."""
     pass
+
+
+def openai_function(name: str, description: str, parameters: Optional[Dict[str, Any]] = None):
+    """
+    Decorator to auto-register MCP methods as OpenAI functions.
+
+    Usage:
+        @openai_function("get_project_overview", "Get project overview")
+        async def get_project_overview(self): ...
+    """
+    def decorator(func: Callable) -> Callable:
+        # Store OpenAI function metadata on the function
+        func._openai_function = {
+            "name": name,
+            "description": description,
+            "parameters": parameters or {"type": "object", "properties": {}},
+            "method": func.__name__
+        }
+        return func
+    return decorator
 
 
 class WorkspaceSecurityError(MCPToolError):
@@ -235,6 +256,113 @@ class MCPToolRegistry:
             }
 
         return await self.tools[tool_name].execute(action, **kwargs)
+
+    def get_all_openai_functions(self) -> List[Dict[str, Any]]:
+        """
+        Auto-discover all OpenAI functions from registered tools.
+        Returns list ready for OpenAI API.
+        """
+        functions = []
+
+        for tool_name, tool in self.tools.items():
+            # Get all methods with @openai_function decorator
+            for method_name in dir(tool):
+                method = getattr(tool, method_name)
+                if hasattr(method, '_openai_function'):
+                    func_def = method._openai_function
+                    functions.append({
+                        "type": "function",
+                        "function": {
+                            "name": func_def["name"],
+                            "description": func_def["description"],
+                            "parameters": func_def["parameters"]
+                        },
+                        "_mcp_tool": tool_name,  # Internal routing info
+                        "_mcp_method": func_def["method"]
+                    })
+
+        return functions
+
+    async def execute_openai_function(self, function_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute OpenAI function call by routing to appropriate MCP tool.
+        """
+        # Find the function definition
+        for tool_name, tool in self.tools.items():
+            for method_name in dir(tool):
+                method = getattr(tool, method_name)
+                if hasattr(method, '_openai_function'):
+                    if method._openai_function["name"] == function_name:
+                        try:
+                            # Call the method with arguments
+                            result = await method(**arguments)
+                            return {"success": True, "result": result}
+                        except Exception as e:
+                            return {"success": False, "error": str(e)}
+
+        return {"success": False, "error": f"Function '{function_name}' not found"}
+
+    async def handle_streaming_response(self, openai_stream, save_conversation_callback=None):
+        """
+        Handle OpenAI streaming response with automatic tool execution.
+        Yields content chunks and handles function calls transparently.
+        """
+        content_chunks = []
+        tool_calls = []
+
+        # Collect streaming chunks and tool calls
+        for chunk in openai_stream:
+            if chunk.choices and chunk.choices[0].delta:
+                delta = chunk.choices[0].delta
+
+                # Yield content immediately for streaming
+                if delta.content:
+                    content_chunks.append(delta.content)
+                    yield {"type": "content", "content": delta.content}
+
+                # Collect tool calls
+                if delta.tool_calls:
+                    for tool_call in delta.tool_calls:
+                        # Handle incremental tool call building
+                        if len(tool_calls) <= tool_call.index:
+                            tool_calls.extend([None] * (tool_call.index + 1 - len(tool_calls)))
+
+                        if tool_calls[tool_call.index] is None:
+                            tool_calls[tool_call.index] = {
+                                "id": tool_call.id,
+                                "function": {"name": "", "arguments": ""}
+                            }
+
+                        if tool_call.function:
+                            if tool_call.function.name:
+                                tool_calls[tool_call.index]["function"]["name"] += tool_call.function.name
+                            if tool_call.function.arguments:
+                                tool_calls[tool_call.index]["function"]["arguments"] += tool_call.function.arguments
+
+        # Execute tool calls if any
+        if tool_calls and any(tc for tc in tool_calls if tc):
+            yield {"type": "tool_start", "content": ""}
+
+            for tool_call in tool_calls:
+                if tool_call:
+                    function_name = tool_call["function"]["name"]
+                    try:
+                        arguments = json.loads(tool_call["function"]["arguments"])
+                    except json.JSONDecodeError:
+                        arguments = {}
+
+                    yield {"type": "tool_execution", "content": f"Using {function_name}..."}
+
+                    # Execute via auto-routing
+                    result = await self.execute_openai_function(function_name, arguments)
+
+                    if not result["success"]:
+                        yield {"type": "tool_error", "content": f"Tool error: {result.get('error')}"}
+
+        # Save full content for conversation saving
+        full_content = "".join(content_chunks)
+        if save_conversation_callback:
+            save_conversation_callback(full_content)
 
     def get_all_tools_status(self) -> Dict[str, Any]:
         """Get status of all registered tools."""

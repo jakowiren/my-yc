@@ -7,7 +7,7 @@ import os
 import json
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from .base_mcp import BaseMCPTool, MCPToolError
+from .base_mcp import BaseMCPTool, MCPToolError, openai_function
 
 
 class FileSystemMCP(BaseMCPTool):
@@ -35,6 +35,14 @@ class FileSystemMCP(BaseMCPTool):
 
         return await action_map[action](**kwargs)
 
+    @openai_function("read_file", "Read contents of a specific file", {
+        "type": "object",
+        "properties": {
+            "file_path": {"type": "string", "description": "Path to the file to read"},
+            "max_lines": {"type": "integer", "description": "Maximum lines to read (optional)"}
+        },
+        "required": ["file_path"]
+    })
     async def read_file(self, file_path: str, max_lines: Optional[int] = None) -> Dict[str, Any]:
         """
         Read a file for CEO understanding.
@@ -98,6 +106,14 @@ class FileSystemMCP(BaseMCPTool):
             self.log_activity("read_file_error", {"file_path": file_path, "error": str(e)}, "error")
             raise MCPToolError(f"Failed to read file: {str(e)}")
 
+    @openai_function("write_file", "Write content to a file (creates or overwrites)", {
+        "type": "object",
+        "properties": {
+            "file_path": {"type": "string", "description": "Path to the file to write"},
+            "content": {"type": "string", "description": "Content to write to the file"}
+        },
+        "required": ["file_path", "content"]
+    })
     async def write_file(self, file_path: str, content: str, create_dirs: bool = True) -> Dict[str, Any]:
         """
         Write file content (primarily for documentation and configs).
@@ -212,6 +228,7 @@ class FileSystemMCP(BaseMCPTool):
             self.log_activity("create_directory_error", {"dir_path": dir_path, "error": str(e)}, "error")
             raise MCPToolError(f"Failed to create directory: {str(e)}")
 
+    @openai_function("get_project_overview", "Get overview of the project including repository status, file count, and workspace info")
     async def get_project_overview(self) -> Dict[str, Any]:
         """
         Get high-level project overview for CEO understanding.

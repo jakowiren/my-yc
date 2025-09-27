@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List, Optional
-from .base_mcp import BaseMCPTool, MCPToolError
+from .base_mcp import BaseMCPTool, MCPToolError, openai_function
 
 
 class GitMCP(BaseMCPTool):
@@ -39,6 +39,14 @@ class GitMCP(BaseMCPTool):
 
         return await action_map[action](**kwargs)
 
+    @openai_function("clone_repository", "Clone a GitHub repository to the workspace", {
+        "type": "object",
+        "properties": {
+            "repo_url": {"type": "string", "description": "GitHub repository URL to clone"},
+            "branch": {"type": "string", "description": "Specific branch to clone (optional)"}
+        },
+        "required": ["repo_url"]
+    })
     async def clone_repository(self, repo_url: str, branch: Optional[str] = None) -> Dict[str, Any]:
         """
         Clone GitHub repository into workspace.
@@ -91,6 +99,7 @@ class GitMCP(BaseMCPTool):
             self.log_activity("clone_error", {"repo_url": repo_url, "error": str(e)}, "error")
             raise MCPToolError(f"Failed to clone repository: {str(e)}")
 
+    @openai_function("get_git_status", "Get current git repository status including uncommitted changes")
     async def get_status(self) -> Dict[str, Any]:
         """
         Get current git repository status.
@@ -124,6 +133,13 @@ class GitMCP(BaseMCPTool):
             self.log_activity("get_status_error", {"error": str(e)}, "error")
             raise MCPToolError(f"Failed to get git status: {str(e)}")
 
+    @openai_function("get_git_history", "Get git commit history with optional filtering", {
+        "type": "object",
+        "properties": {
+            "max_commits": {"type": "integer", "description": "Maximum number of commits to return", "default": 10},
+            "since_days": {"type": "integer", "description": "Only show commits from the last N days"}
+        }
+    })
     async def get_history(self, max_commits: int = 10, since_days: Optional[int] = None) -> Dict[str, Any]:
         """
         Get commit history for CEO understanding.
@@ -233,6 +249,14 @@ class GitMCP(BaseMCPTool):
             self.log_activity("get_recent_changes_error", {"error": str(e)}, "error")
             raise MCPToolError(f"Failed to get recent changes: {str(e)}")
 
+    @openai_function("commit_changes", "Commit changes to the git repository", {
+        "type": "object",
+        "properties": {
+            "message": {"type": "string", "description": "Commit message"},
+            "files": {"type": "array", "items": {"type": "string"}, "description": "Specific files to commit (optional, commits all changes if not specified)"}
+        },
+        "required": ["message"]
+    })
     async def commit_changes(self, message: str, files: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         Commit changes (primarily for documentation and strategic updates).
@@ -340,6 +364,7 @@ class GitMCP(BaseMCPTool):
             self.log_activity("push_error", {"branch": branch, "error": str(e)}, "error")
             raise MCPToolError(f"Failed to push changes: {str(e)}")
 
+    @openai_function("get_repository_info", "Get comprehensive repository information and metrics")
     async def get_repository_info(self) -> Dict[str, Any]:
         """Get comprehensive repository information."""
         try:
