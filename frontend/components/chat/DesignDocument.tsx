@@ -29,22 +29,28 @@ export function DesignDocument({
           text: "Design Complete",
           color: "text-green-400"
         }
-      case 'spawning':
+      case 'workspace_initializing':
         return {
           icon: <Clock className="w-4 h-4 text-yellow-400 animate-spin" />,
-          text: "Creating Project...",
+          text: "Initializing Workspace...",
           color: "text-yellow-400"
         }
-      case 'running':
+      case 'workspace_ready':
         return {
           icon: <Rocket className="w-4 h-4 text-blue-400" />,
-          text: "Project Active",
+          text: "Workspace Ready - Chat with AI Team",
           color: "text-blue-400"
+        }
+      case 'project_creating':
+        return {
+          icon: <Clock className="w-4 h-4 text-yellow-400 animate-spin" />,
+          text: "Creating GitHub Project...",
+          color: "text-yellow-400"
         }
       case 'completed':
         return {
           icon: <CheckCircle className="w-4 h-4 text-green-400" />,
-          text: "Project Deployed",
+          text: "Project Created Successfully",
           color: "text-green-400"
         }
       case 'error':
@@ -63,8 +69,8 @@ export function DesignDocument({
   }
 
   const status = getStatusDisplay()
-  const canStartProject = projectStatus === 'design_ready'
-  const isProjectStarted = ['spawning', 'running', 'completed'].includes(projectStatus)
+  const canStartWorkspace = projectStatus === 'design_ready'
+  const showWorkspaceStatus = ['workspace_initializing', 'workspace_ready', 'project_creating', 'completed'].includes(projectStatus)
 
   return (
     <div className="bg-white/5 border border-white/10 rounded-lg p-6 space-y-6">
@@ -94,15 +100,15 @@ export function DesignDocument({
             </Button>
           )}
 
-          {canStartProject && (
+          {canStartWorkspace && (
             <Button
               onClick={onStartProject}
               disabled={isStarting}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
               size="sm"
             >
               <Rocket className="w-3 h-3 mr-1" />
-              {isStarting ? 'Starting...' : 'Start Project'}
+              {isStarting ? 'Initializing...' : 'Start Workspace'}
             </Button>
           )}
         </div>
@@ -188,6 +194,7 @@ export function DesignDocument({
           ))}
         </ul>
       </div>
+
 
       {/* Metadata */}
       <div className="flex items-center justify-between pt-4 border-t border-white/10">

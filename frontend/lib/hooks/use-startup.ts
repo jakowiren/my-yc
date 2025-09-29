@@ -19,7 +19,7 @@ interface UseStartupReturn {
   messages: ChatMessage[]
   isLoading: boolean
   error: string | null
-  sendMessage: (content: string) => Promise<void>
+  sendMessage: (content: string, agentType?: string) => Promise<void>
   loadStartup: (startupId: string) => Promise<void>
   clearMessages: () => void
 }
@@ -85,7 +85,7 @@ export function useStartup(): UseStartupReturn {
     }
   }, [session])
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, agentType?: string) => {
     if (!session?.access_token) {
       throw new Error('Not authenticated')
     }
@@ -109,8 +109,15 @@ export function useStartup(): UseStartupReturn {
     setError(null)
 
     try {
-      // Determine current agent based on project status
-      const currentAgent = startup.project_status === 'completed' && startup.ceo_status === 'ready' ? 'ceo' : 'jason'
+      // Determine current agent based on project status and passed agentType
+      let currentAgent: string
+      if (startup.project_status === 'workspace_ready' && startup.ceo_status === 'ready') {
+        // Use provided agent type or default to 'ceo' for workspace
+        currentAgent = agentType || 'ceo'
+      } else {
+        // Use Jason for planning phase
+        currentAgent = 'jason'
+      }
 
       // Save user message to database
       const userMessageData: MessageInsert = {
@@ -144,7 +151,8 @@ export function useStartup(): UseStartupReturn {
         },
         body: JSON.stringify({
           messages: apiMessages,
-          startup_id: startup.id
+          startup_id: startup.id,
+          agent_type: currentAgent
         }),
       })
 

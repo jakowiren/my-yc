@@ -8,6 +8,9 @@ import { useAuth } from "@/lib/auth-context"
 import { useStartup } from "@/lib/hooks/use-startup"
 import { ChatMessageComponent } from "@/components/chat/ChatMessage"
 import { DesignDocument } from "@/components/chat/DesignDocument"
+import { AgentSelector } from "@/components/agent-selector"
+import { WorkspaceStatus } from "@/components/workspace-status"
+import { TeamBoard } from "@/components/team-board"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 
@@ -25,6 +28,7 @@ export default function ChatPage({ params }: ChatPageProps) {
   const [inputValue, setInputValue] = useState("")
   const [isStartingProject, setIsStartingProject] = useState(false)
   const [activeTab, setActiveTab] = useState<'planning' | 'action'>('planning')
+  const [selectedAgent, setSelectedAgent] = useState('ceo')
   const hasInitializedRef = useRef(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -49,9 +53,9 @@ export default function ChatPage({ params }: ChatPageProps) {
     }
   }, [initialMessage, startup, user, sendMessage])
 
-  // Switch to Action tab when project is completed and CEO is ready
+  // Switch to Action tab when workspace is ready
   useEffect(() => {
-    if (startup?.project_status === 'completed' && startup?.ceo_status === 'ready') {
+    if (startup?.project_status === 'workspace_ready' && startup?.ceo_status === 'ready') {
       setActiveTab('action')
     }
   }, [startup?.project_status, startup?.ceo_status])
@@ -97,7 +101,9 @@ export default function ChatPage({ params }: ChatPageProps) {
     if (!inputValue.trim()) return
 
     try {
-      await sendMessage(inputValue)
+      // Pass the selected agent for workspace chats
+      const agentToUse = activeTab === 'action' ? selectedAgent : undefined
+      await sendMessage(inputValue, agentToUse)
       setInputValue('')
     } catch (error) {
       console.error('Failed to send message:', error)
@@ -137,10 +143,12 @@ export default function ChatPage({ params }: ChatPageProps) {
       }
 
       console.log('✅ Project spawn result:', result)
+      console.log('🔄 Reloading startup data for ID:', startup.id)
 
       // Reload startup to get updated status
       if (startup.id) {
-        await loadStartup(startup.id)
+        const reloadedStartup = await loadStartup(startup.id)
+        console.log('✅ Startup reloaded, new status:', reloadedStartup?.project_status)
       }
 
       // Show success message with GitHub link if available
@@ -190,19 +198,19 @@ export default function ChatPage({ params }: ChatPageProps) {
             >
               <MessageSquare size={16} />
               <span>Planning</span>
-              {startup?.project_status !== 'completed' && (
+              {startup?.project_status === 'designing' || startup?.project_status === 'design_ready' ? (
                 <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-              )}
+              ) : null}
             </button>
             <button
               onClick={() => setActiveTab('action')}
-              disabled={startup?.project_status !== 'completed' || startup?.ceo_status !== 'ready'}
+              disabled={startup?.project_status !== 'workspace_ready' || startup?.ceo_status !== 'ready'}
               className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'action'
                   ? 'bg-white/10 text-white border border-white/20'
                   : 'text-white/60 hover:text-white/80 hover:bg-white/5'
               } ${
-                startup?.project_status !== 'completed' || startup?.ceo_status !== 'ready'
+                startup?.project_status !== 'workspace_ready' || startup?.ceo_status !== 'ready'
                   ? 'opacity-50 cursor-not-allowed'
                   : ''
               }`}
@@ -222,20 +230,48 @@ export default function ChatPage({ params }: ChatPageProps) {
         <div className="container mx-auto max-w-4xl p-4">
           <div className="space-y-4">
             {/* Tab-specific content */}
-            {activeTab === 'planning' && startup?.project_status === 'completed' && (
+            {activeTab === 'planning' && startup?.project_status === 'workspace_ready' && (
               <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-4">
                 <div className="text-yellow-400 text-sm font-medium mb-1">Planning Phase Complete</div>
                 <div className="text-white/70 text-sm">
-                  The design phase with Jason is complete. Switch to the Action tab to start working with your CEO.
+                  The design phase with Jason is complete. Switch to the Action tab to start working with your AI team.
                 </div>
               </div>
             )}
 
-            {activeTab === 'action' && (!startup?.project_status || startup?.project_status !== 'completed') && (
+            {activeTab === 'action' && (!startup?.project_status || startup?.project_status !== 'workspace_ready') && (
               <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-4">
                 <div className="text-blue-400 text-sm font-medium mb-1">Action Phase Not Ready</div>
                 <div className="text-white/70 text-sm">
-                  Complete the planning phase and start your project to begin working with the CEO.
+                  Complete the planning phase and start your workspace to begin working with the AI team.
+                </div>
+              </div>
+            )}
+
+            {/* Workspace Interface - Show in Action tab when ready */}
+            {activeTab === 'action' && startup?.project_status === 'workspace_ready' && (
+              <div className="space-y-4 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg mb-4">
+                <h4 className="text-sm font-medium text-blue-400 mb-3">🚀 Your AI Workspace is Ready!</h4>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <WorkspaceStatus startupId={startupId} />
+                  <div className="space-y-2">
+                    <TeamBoard startupId={startupId} />
+                    <p className="text-xs text-blue-300/70">Test persistent memory by asking the CEO to write messages to the team board.</p>
+                  </div>
+                </div>
+
+                <AgentSelector
+                  selectedAgent={selectedAgent}
+                  onAgentChange={setSelectedAgent}
+                  className="mt-4"
+                />
+
+                <div className="text-sm text-blue-300/80 space-y-1 mt-4">
+                  <p><strong>💡 Next Steps:</strong></p>
+                  <p>• Ask the CEO: "Create a GitHub repository for our project"</p>
+                  <p>• Test team communication: "Write to the team board that we're starting development"</p>
+                  <p>• Switch between different AI agents (Frontend, Backend, Design, etc.)</p>
                 </div>
               </div>
             )}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { JASON_SYSTEM_PROMPT } from '@/lib/ai/jason-prompt'
 import OpenAI from 'openai'
+import { MODAL_ENDPOINTS, WORKSPACE_ENDPOINTS } from '@/lib/config/endpoints'
 
 // Initialize Supabase client for server-side auth verification
 const supabase = createClient(
@@ -87,9 +88,14 @@ export async function POST(req: NextRequest) {
 
     // Parse the request body
     console.log('📝 Parsing request body...')
-    const { messages, startup_id }: { messages: ChatMessage[], startup_id?: string } = await req.json()
+    const { messages, startup_id, agent_type }: {
+      messages: ChatMessage[],
+      startup_id?: string,
+      agent_type?: string
+    } = await req.json()
     console.log('- Messages received:', messages?.length || 0)
     console.log('- Startup ID:', startup_id)
+    console.log('- Agent type:', agent_type)
     console.log('- Messages preview:', messages?.slice(-2).map(m => ({ role: m.role, length: m.content?.length })))
 
     if (!messages || !Array.isArray(messages)) {
@@ -97,9 +103,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 })
     }
 
-    // Check if we should route to CEO instead of Jason
+    // Smart routing: Check if we should route to CEO or Jason
     if (startup_id) {
-      console.log('🤖 Checking if startup has CEO available...')
+      console.log('🔀 Smart routing: Checking startup status for startup:', startup_id)
 
       // Get startup from Supabase to check project status
       const { data: startup, error: startupError } = await supabase
@@ -115,64 +121,34 @@ export async function POST(req: NextRequest) {
           ceo_status: startup.ceo_status
         })
 
-        // If startup has a CEO ready, route to CEO chat
-        if (startup.project_status === 'completed' && startup.ceo_status === 'ready') {
-          console.log('🤖 Routing to CEO chat...')
+        // If startup has a workspace ready, route to new workspace agent endpoint
+        if (startup.project_status === 'workspace_ready' && startup.ceo_status === 'ready') {
+          console.log('🤖 Routing to new workspace CEO agent...')
 
+          // Forward to new workspace agent route
+          const workspaceUrl = new URL('/api/workspace/agent', req.url)
+          const workspaceRequest = new Request(workspaceUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': authHeader,
+            },
+            body: JSON.stringify({
+              messages,
+              startup_id,
+              agent_type: agent_type || 'ceo',  // Use passed agent type or default to CEO
+              stream: true
+            })
+          })
+
+          // Call our new workspace agent endpoint
           try {
-            // Get the last user message
-            const lastMessage = messages[messages.length - 1]
-            if (lastMessage?.role === 'user') {
-
-              // Call CEO Modal endpoint
-              const ceoResponse = await fetch('https://jakowiren--chat.modal.run', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  startup_id: startup_id,
-                  message: lastMessage.content
-                })
-              })
-
-              if (ceoResponse.ok) {
-                const ceoResult = await ceoResponse.json()
-
-                if (ceoResult.success) {
-                  console.log('✅ CEO response received')
-
-                  // Return CEO response as streaming format for compatibility
-                  const encoder = new TextEncoder()
-                  const readable = new ReadableStream({
-                    start(controller) {
-                      const data = `data: ${JSON.stringify({ content: ceoResult.response })}\n\n`
-                      controller.enqueue(encoder.encode(data))
-                      controller.enqueue(encoder.encode('data: [DONE]\n\n'))
-                      controller.close()
-                    }
-                  })
-
-                  return new Response(readable, {
-                    headers: {
-                      'Content-Type': 'text/event-stream',
-                      'Cache-Control': 'no-cache',
-                      'Connection': 'keep-alive',
-                    },
-                  })
-                } else {
-                  console.error('❌ CEO response failed:', ceoResult.error)
-                }
-              } else {
-                console.error('❌ Failed to reach CEO:', ceoResponse.status)
-              }
-            }
+            const { POST: workspacePost } = await import('./../workspace/agent/route')
+            return await workspacePost(workspaceRequest as NextRequest)
           } catch (error) {
-            console.error('❌ Error calling CEO:', error)
+            console.error('❌ Error routing to workspace agent:', error)
+            console.log('⚠️ Workspace routing failed, falling back to Jason')
           }
-
-          // Fall back to Jason if CEO fails
-          console.log('⚠️ CEO unavailable, falling back to Jason')
         }
       }
     }
