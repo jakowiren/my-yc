@@ -82,7 +82,7 @@ export default function ChatPage({ params }: ChatPageProps) {
   // Determine if user can send messages in current tab
   const canSendMessage = activeTab === 'planning'
     ? startup?.project_status !== 'completed'
-    : startup?.project_status === 'completed' && startup?.ceo_status === 'ready'
+    : startup?.project_status === 'workspace_ready' && startup?.ceo_status === 'ready'
 
   // Get appropriate AI name for current tab
   const currentAIName = activeTab === 'planning' ? 'Jason' : 'CEO'

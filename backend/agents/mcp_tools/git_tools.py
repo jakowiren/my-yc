@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List, Optional
-from .base_mcp import BaseMCPTool, MCPToolError, openai_function
+from mcp_tools.base_mcp import BaseMCPTool, MCPToolError, openai_function
 
 
 class GitMCP(BaseMCPTool):

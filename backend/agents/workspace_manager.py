@@ -7,7 +7,7 @@ import os
 import json
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 
 class WorkspaceManager:
@@ -70,6 +70,7 @@ class WorkspaceManager:
             workspace / "memory" / "ceo",
             workspace / "memory" / "agents",
             workspace / "memory" / "team_chat",
+            workspace / "memory" / "shared_notes",  # For shared key-value storage
 
             # MCP configuration
             workspace / "mcp"
@@ -282,6 +283,177 @@ class WorkspaceManager:
 
         except Exception as e:
             print(f"⚠️ Failed to update workspace activity: {e}")
+
+    def get_team_messages(self, startup_id: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """Get team messages from the message board for testing purposes."""
+        if not self.workspace_exists(startup_id):
+            return []
+
+        workspace = self.get_workspace_path(startup_id)
+        messages_file = workspace / "memory" / "team_chat" / "messages.jsonl"
+
+        if not messages_file.exists():
+            return []
+
+        messages = []
+        try:
+            with open(messages_file, "r") as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            message = json.loads(line.strip())
+                            messages.append(message)
+                        except json.JSONDecodeError:
+                            continue
+
+            # Sort by timestamp (newest first) and limit
+            messages.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+            return messages[:limit]
+
+        except Exception as e:
+            print(f"❌ Error reading team messages: {e}")
+            return []
+
+    def get_agent_memory_summary(self, startup_id: str, agent_type: str) -> Dict[str, Any]:
+        """Get summary of agent memory for debugging/testing."""
+        if not self.workspace_exists(startup_id):
+            return {"error": "Workspace not found"}
+
+        workspace = self.get_workspace_path(startup_id)
+        agent_path = workspace / "memory" / "agents" / agent_type
+
+        if not agent_path.exists():
+            return {
+                "agent_type": agent_type,
+                "status": "not_initialized",
+                "conversation_count": 0
+            }
+
+        try:
+            conversation_file = agent_path / "conversation.json"
+            if conversation_file.exists():
+                with open(conversation_file, "r") as f:
+                    data = json.load(f)
+
+                return {
+                    "agent_type": agent_type,
+                    "status": "active",
+                    "conversation_count": len(data.get("messages", [])),
+                    "last_active": data.get("last_active"),
+                    "created_at": data.get("created_at")
+                }
+            else:
+                return {
+                    "agent_type": agent_type,
+                    "status": "initialized",
+                    "conversation_count": 0
+                }
+
+        except Exception as e:
+            return {
+                "agent_type": agent_type,
+                "status": "error",
+                "error": str(e)
+            }
+
+    def get_workspace_agents(self, startup_id: str) -> List[str]:
+        """Get list of agents that have been initialized in this workspace."""
+        if not self.workspace_exists(startup_id):
+            return []
+
+        workspace = self.get_workspace_path(startup_id)
+        agents_path = workspace / "memory" / "agents"
+
+        if not agents_path.exists():
+            return []
+
+        # Return list of agent directories that exist
+        agents = []
+        for agent_dir in agents_path.iterdir():
+            if agent_dir.is_dir():
+                agents.append(agent_dir.name)
+
+        return sorted(agents)
+
+    def get_shared_notes(self, startup_id: str) -> List[Dict[str, Any]]:
+        """Get all shared notes for testing purposes."""
+        if not self.workspace_exists(startup_id):
+            return []
+
+        workspace = self.get_workspace_path(startup_id)
+        shared_notes_path = workspace / "memory" / "shared_notes"
+
+        if not shared_notes_path.exists():
+            return []
+
+        notes = []
+        try:
+            for note_file in shared_notes_path.glob("*.json"):
+                with open(note_file, "r") as f:
+                    note_obj = json.load(f)
+                    notes.append({
+                        "key": note_obj.get("key"),
+                        "value": note_obj.get("value"),
+                        "author": note_obj.get("author"),
+                        "description": note_obj.get("description", ""),
+                        "last_updated": note_obj.get("last_updated")
+                    })
+
+            # Sort by last_updated
+            notes.sort(key=lambda x: x.get("last_updated", ""), reverse=True)
+            return notes
+
+        except Exception as e:
+            print(f"❌ Error reading shared notes: {e}")
+            return []
+
+    def get_workspace_status(self, startup_id: str) -> Dict[str, Any]:
+        """Get comprehensive workspace status for testing and debugging."""
+        if not self.workspace_exists(startup_id):
+            return {
+                "startup_id": startup_id,
+                "status": "not_initialized",
+                "container_status": "cold"
+            }
+
+        try:
+            workspace_info = self.get_workspace_info(startup_id)
+            team_messages = self.get_team_messages(startup_id, limit=5)
+            agents = self.get_workspace_agents(startup_id)
+            shared_notes = self.get_shared_notes(startup_id)
+
+            agent_summaries = {}
+            for agent in agents:
+                agent_summaries[agent] = self.get_agent_memory_summary(startup_id, agent)
+
+            return {
+                "startup_id": startup_id,
+                "status": workspace_info.get("ceo_status", "unknown"),
+                "workspace_path": workspace_info.get("workspace_path"),
+                "last_activity": workspace_info.get("last_activity"),
+                "container_status": "active",
+                "agents": {
+                    "available": agents,
+                    "count": len(agents),
+                    "summaries": agent_summaries
+                },
+                "team_communication": {
+                    "recent_messages": team_messages,
+                    "message_count": len(team_messages),
+                    "shared_notes": shared_notes,
+                    "notes_count": len(shared_notes)
+                },
+                "metadata": workspace_info.get("metadata", {}),
+                "timestamp": datetime.now().isoformat()
+            }
+
+        except Exception as e:
+            return {
+                "startup_id": startup_id,
+                "status": "error",
+                "error": str(e),
+                "container_status": "unknown"
+            }
 
     def cleanup_workspace(self, startup_id: str) -> bool:
         """

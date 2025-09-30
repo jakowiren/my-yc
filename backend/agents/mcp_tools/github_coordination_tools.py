@@ -6,7 +6,7 @@ CEO-focused GitHub operations for task management and project coordination.
 import os
 from typing import Dict, Any, List, Optional
 from github import Github
-from .base_mcp import BaseMCPTool, MCPToolError, openai_function
+from mcp_tools.base_mcp import BaseMCPTool, MCPToolError, openai_function
 
 
 class GitHubCoordinationMCP(BaseMCPTool):

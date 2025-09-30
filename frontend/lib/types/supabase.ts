@@ -1,7 +1,7 @@
 // TypeScript types for Supabase database schema
 import { StartupDesignDoc } from '../ai/design-doc-template'
 
-export type ProjectStatus = 'designing' | 'design_ready' | 'spawning' | 'running' | 'completed' | 'error'
+export type ProjectStatus = 'designing' | 'design_ready' | 'workspace_initializing' | 'workspace_ready' | 'project_creating' | 'completed' | 'error'
 
 export interface Startup {
   id: string

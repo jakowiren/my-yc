@@ -10,8 +10,8 @@ function extractRepoName(repoUrl: string | null): string | null {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-// Use stable Modal web endpoint for CEO initialization
-const modalInitializeUrl = 'https://jakowiren--initialize.modal.run'
+// Use new workspace initialization endpoint
+const modalInitializeUrl = 'https://jakowiren--workspace-initialize.modal.run'
 
 interface SpawnProjectRequest {
   startup_id: string
@@ -104,13 +104,14 @@ serve(async (req) => {
 
     console.log(`📋 Design document found for: ${startup.design_doc.title}`)
 
-    // Update startup status to spawning
+    // Update startup status to workspace_initializing
     const { error: updateError } = await supabaseAdmin
       .from('startups')
       .update({
-        project_status: 'spawning',
+        project_status: 'workspace_initializing',
         spawned_at: new Date().toISOString(),
-        error_details: null
+        error_details: null,
+        updated_at: new Date().toISOString()
       })
       .eq('id', startup_id)
 
@@ -128,11 +129,11 @@ serve(async (req) => {
       design_doc: startup.design_doc
     }
 
-    console.log(`🤖 Initializing CEO for startup: ${startup_id}`)
+    console.log(`🚀 Initializing workspace for startup: ${startup_id}`)
 
     // Call Modal function to initialize CEO
     try {
-      console.log(`🔗 Calling CEO initialization function: ${modalInitializeUrl}`)
+      console.log(`🔗 Calling workspace initialization function: ${modalInitializeUrl}`)
 
       // Modal functions expect parameters as URL query params or form data
       const modalResponse = await fetch(modalInitializeUrl, {
@@ -148,42 +149,30 @@ serve(async (req) => {
 
       if (!modalResponse.ok) {
         const modalError = await modalResponse.text()
-        throw new Error(`Modal CEO initialization error: ${modalResponse.status} - ${modalError}`)
+        throw new Error(`Modal workspace initialization error: ${modalResponse.status} - ${modalError}`)
       }
 
       const ceoResult = await modalResponse.json()
-      console.log(`✅ CEO initialization result:`, ceoResult)
+      console.log(`✅ Workspace initialization result:`, ceoResult)
 
-      // Update startup with CEO container info and workspace tracking
+      // Update startup with workspace info using actual schema columns
       const updateData: any = {
-        project_status: ceoResult.success ? 'running' : 'error',
-        container_endpoint: 'https://jakowiren--chat.modal.run',
+        project_status: ceoResult.success ? 'workspace_ready' : 'error',
+        container_endpoint: 'https://jakowiren--workspace-agent-stream.modal.run',
         ceo_status: ceoResult.success ? 'ready' : 'error',
-        ceo_initialized_at: new Date().toISOString(),
-        last_activity: new Date().toISOString(),
-        // Workspace tracking fields
-        workspace_path: `/workspace/${startup_id}`,
+        workspace_path: ceoResult.workspace_path || `/workspace/${startup_id}`,
+        workspace_version: '2.0',
         workspace_created_at: new Date().toISOString(),
         workspace_last_updated: new Date().toISOString(),
-        workspace_version: '1.0'
+        updated_at: new Date().toISOString()
       }
 
-      // Add GitHub URL and team plan if CEO was successful
-      if (ceoResult.success && ceoResult.repo_url) {
-        updateData.github_url = ceoResult.repo_url
-        updateData.project_status = 'completed'  // CEO created repo successfully
-        updateData.ceo_status = 'ready'  // CEO is ready with workspace
+      // GitHub repo will be created later by CEO agent during conversation
+      // No longer expect immediate repo creation during workspace initialization
 
-        // Store team plan if available
-        if (ceoResult.team_plan) {
-          updateData.team_plan = ceoResult.team_plan
-        }
-      }
-
-      // Add error details if CEO initialization failed
+      // Add error details if workspace initialization failed
       if (!ceoResult.success && ceoResult.error) {
         updateData.error_details = ceoResult.error
-        updateData.ceo_status = 'error'
       }
 
       await supabaseAdmin
@@ -211,14 +200,16 @@ serve(async (req) => {
         JSON.stringify({
           success: true,
           message: ceoResult.success
-            ? 'CEO Agent initialized and project created successfully!'
-            : 'CEO Agent initialization in progress',
+            ? 'Workspace initialized successfully! You can now chat with the CEO to create your project.'
+            : 'Workspace initialization in progress',
           startup_id: startup_id,
-          container_endpoint: 'https://jakowiren--chat.modal.run',
+          container_endpoint: 'https://jakowiren--workspace-agent-stream.modal.run',
           project_status: updateData.project_status,
-          github_url: ceoResult.repo_url || null,
-          repo_name: extractRepoName(ceoResult.repo_url) || null,
-          ceo_status: ceoResult.status || 'initializing'
+          github_url: null,  // Will be set when CEO creates repo during conversation
+          repo_name: null,   // Will be set when CEO creates repo during conversation
+          ceo_status: updateData.ceo_status,
+          workspace_path: updateData.workspace_path,
+          available_agents: ceoResult.available_agents || ['ceo', 'frontend', 'backend', 'design', 'testing']
         }),
         {
           status: 200,
@@ -227,7 +218,7 @@ serve(async (req) => {
       )
 
     } catch (modalError) {
-      console.error('Modal CEO initialization error:', modalError)
+      console.error('Modal workspace initialization error:', modalError)
 
       // Update startup status to error
       await supabaseAdmin
@@ -235,7 +226,7 @@ serve(async (req) => {
         .update({
           project_status: 'error',
           ceo_status: 'error',
-          error_details: `CEO initialization failed: ${modalError.message}`,
+          error_details: `Workspace initialization failed: ${modalError.message}`,
           last_activity: new Date().toISOString()
         })
         .eq('id', startup_id)
@@ -243,7 +234,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Failed to initialize CEO Agent in Modal',
+          error: 'Failed to initialize workspace in Modal',
           details: modalError.message
         }),
         {
