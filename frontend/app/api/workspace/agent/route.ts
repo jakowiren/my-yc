@@ -20,6 +20,7 @@ const WORKSPACE_ENDPOINTS = {
 }
 
 console.log('🔧 Workspace endpoints configured:', WORKSPACE_ENDPOINTS)
+console.log('📍 Using correct Modal label-only URLs')
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
