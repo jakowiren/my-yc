@@ -20,7 +20,7 @@ interface UseStartupReturn {
   isLoading: boolean
   error: string | null
   sendMessage: (content: string, agentType?: string) => Promise<void>
-  loadStartup: (startupId: string) => Promise<void>
+  loadStartup: (startupId: string) => Promise<Startup | null>
   clearMessages: () => void
 }
 
@@ -31,10 +31,10 @@ export function useStartup(): UseStartupReturn {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const loadStartup = useCallback(async (startupId: string) => {
+  const loadStartup = useCallback(async (startupId: string): Promise<Startup | null> => {
     if (!session?.access_token) {
       setError('Not authenticated')
-      return
+      return null
     }
 
     try {
@@ -77,9 +77,11 @@ export function useStartup(): UseStartupReturn {
         }))
 
       setMessages(chatMessages)
+      return startupData
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load startup')
       console.error('Error loading startup:', err)
+      return null
     } finally {
       setIsLoading(false)
     }
