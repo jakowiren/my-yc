@@ -13,16 +13,23 @@ export function ChatMessageComponent({ message }: ChatMessageProps) {
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
       <div className={`max-w-[80%] ${isUser ? 'order-2' : 'order-1'}`}>
         <div
-          className={`px-4 py-3 rounded-lg ${
+          className={`px-4 py-3 rounded-lg min-h-[2.5rem] ${
             isUser
               ? 'bg-white/10 text-white ml-auto'
               : 'bg-white/5 text-white/90 border border-white/10'
           }`}
+          style={{
+            wordBreak: 'break-word',
+            overflowWrap: 'break-word'
+          }}
         >
           {!isUser && (
             <div className="text-xs text-white/60 mb-1 font-medium">Jason</div>
           )}
-          <div className="text-sm leading-relaxed whitespace-pre-wrap">
+          <div
+            className="text-sm leading-relaxed whitespace-pre-wrap"
+            style={{ minHeight: '1.25rem' }}
+          >
             {message.content}
           </div>
         </div>

@@ -192,8 +192,55 @@ export function useStartup(): UseStartupReturn {
       setMessages(prev => [...prev, assistantMessage])
 
       const decoder = new TextDecoder()
-      let lastUpdateTime = 0
-      const UPDATE_INTERVAL = 50 // ms between UI updates (slower streaming)
+      let buffer = '' // Buffer for accumulating words
+      let displayedContent = '' // Content currently displayed
+      let updateScheduled = false
+
+      // Function to update UI with buffered content
+      const updateUI = () => {
+        if (buffer.length > 0) {
+          displayedContent += buffer
+          buffer = ''
+
+          // Filter out DESIGN_DOC_FINAL lines from display
+          let displayContent = displayedContent
+          const designDocIndex = displayContent.indexOf('DESIGN_DOC_FINAL:')
+          if (designDocIndex !== -1) {
+            let braceCount = 0
+            let jsonStart = displayContent.indexOf('{', designDocIndex)
+            if (jsonStart !== -1) {
+              let jsonEnd = jsonStart
+              for (let i = jsonStart; i < displayContent.length; i++) {
+                if (displayContent[i] === '{') braceCount++
+                if (displayContent[i] === '}') braceCount--
+                if (braceCount === 0) {
+                  jsonEnd = i
+                  break
+                }
+              }
+              displayContent = displayContent.substring(0, designDocIndex) + displayContent.substring(jsonEnd + 1)
+              displayContent = displayContent.trim()
+            }
+          }
+
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.id === assistantMessage.id
+                ? { ...msg, content: displayContent }
+                : msg
+            )
+          )
+        }
+        updateScheduled = false
+      }
+
+      // Schedule update on next animation frame for smooth rendering
+      const scheduleUpdate = () => {
+        if (!updateScheduled) {
+          updateScheduled = true
+          requestAnimationFrame(updateUI)
+        }
+      }
 
       while (true) {
         const { done, value } = await reader.read()
@@ -207,6 +254,11 @@ export function useStartup(): UseStartupReturn {
             const data = line.slice(6).trim()
 
             if (data === '[DONE]') {
+              // Flush any remaining buffered content
+              if (buffer.length > 0) {
+                updateUI()
+              }
+
               // Save final assistant message to database
               if (assistantContent) {
                 const assistantMessageData: MessageInsert = {
@@ -233,45 +285,14 @@ export function useStartup(): UseStartupReturn {
               }
               if (parsed.content) {
                 assistantContent += parsed.content
+                buffer += parsed.content
 
-                // Throttle UI updates for slower, more readable streaming
-                const now = Date.now()
-                if (now - lastUpdateTime < UPDATE_INTERVAL) {
-                  continue // Skip this update to slow down streaming
+                // Update on word boundaries or punctuation for natural flow
+                // This includes spaces, newlines, and punctuation
+                if (parsed.content.match(/[\s\n,.!?;:]/)) {
+                  scheduleUpdate()
                 }
-                lastUpdateTime = now
-
-                // Filter out DESIGN_DOC_FINAL lines from display
-                let displayContent = assistantContent
-                const designDocIndex = displayContent.indexOf('DESIGN_DOC_FINAL:')
-                if (designDocIndex !== -1) {
-                  // Find the end of the JSON object
-                  let braceCount = 0
-                  let jsonStart = displayContent.indexOf('{', designDocIndex)
-                  if (jsonStart !== -1) {
-                    let jsonEnd = jsonStart
-                    for (let i = jsonStart; i < displayContent.length; i++) {
-                      if (displayContent[i] === '{') braceCount++
-                      if (displayContent[i] === '}') braceCount--
-                      if (braceCount === 0) {
-                        jsonEnd = i
-                        break
-                      }
-                    }
-                    // Remove the entire DESIGN_DOC_FINAL section
-                    displayContent = displayContent.substring(0, designDocIndex) + displayContent.substring(jsonEnd + 1)
-                    displayContent = displayContent.trim()
-                  }
-                }
-
-                // Update the assistant message with filtered content
-                setMessages(prev =>
-                  prev.map(msg =>
-                    msg.id === assistantMessage.id
-                      ? { ...msg, content: displayContent }
-                      : msg
-                  )
-                )
+              }
 
                 // Check if this is the first message and extract title
                 if (messages.length === 1 && assistantContent.includes('TITLE:')) {

@@ -110,14 +110,23 @@ export default function ChatPage({ params }: ChatPageProps) {
   const currentAIName = activeTab === 'planning' ? 'Jason' : 'CEO'
 
   // Auto scroll to bottom when new messages arrive
+  // Only scroll if user is already near the bottom to avoid disrupting manual scrolling
   useEffect(() => {
-    if (messagesContainerRef.current && messagesEndRef.current) {
-      messagesContainerRef.current.scrollTo({
-        top: messagesContainerRef.current.scrollHeight,
-        behavior: 'smooth'
-      })
+    if (messagesContainerRef.current) {
+      const container = messagesContainerRef.current
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150
+
+      if (isNearBottom) {
+        // Use requestAnimationFrame for smoother scrolling during streaming
+        requestAnimationFrame(() => {
+          container.scrollTo({
+            top: container.scrollHeight,
+            behavior: 'smooth'
+          })
+        })
+      }
     }
-  }, [messages])
+  }, [messages, isLoading])
 
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return

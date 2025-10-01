@@ -76,6 +76,13 @@
 }
 
 /* Custom scrollbar for messages area */
+.messages-scroll {
+  scroll-behavior: smooth;
+  overflow-anchor: auto;
+  /* Prevent scroll jank during content updates */
+  will-change: scroll-position;
+}
+
 .messages-scroll::-webkit-scrollbar {
   width: 6px;
 }
