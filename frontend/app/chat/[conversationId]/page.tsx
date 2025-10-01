@@ -32,10 +32,21 @@ export default function ChatPage({ params }: ChatPageProps) {
   const hasInitializedRef = useRef(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const [optimisticInitialMessage, setOptimisticInitialMessage] = useState<{ content: string; timestamp: number } | null>(null)
 
   // Get startup ID from URL params (this is the Supabase startup ID)
   const startupId = params.conversationId
   const initialMessage = searchParams.get('message')
+
+  // Show initial message optimistically right away
+  useEffect(() => {
+    if (initialMessage && !hasInitializedRef.current) {
+      setOptimisticInitialMessage({
+        content: initialMessage,
+        timestamp: Date.now()
+      })
+    }
+  }, [initialMessage])
 
   // Load startup and messages when component mounts
   useEffect(() => {
@@ -49,6 +60,7 @@ export default function ChatPage({ params }: ChatPageProps) {
     if (initialMessage && !hasInitializedRef.current && startup && user) {
       console.log('📤 Sending initial message:', initialMessage)
       hasInitializedRef.current = true
+      setOptimisticInitialMessage(null) // Clear optimistic message
       sendMessage(initialMessage)
     }
   }, [initialMessage, startup, user, sendMessage])
@@ -229,6 +241,16 @@ export default function ChatPage({ params }: ChatPageProps) {
       <main ref={messagesContainerRef} className="flex-1 overflow-y-auto messages-scroll pt-32 pb-32">
         <div className="container mx-auto max-w-4xl p-4">
           <div className="space-y-4">
+            {/* Loading state - show when startup is not yet loaded and we have an initial message */}
+            {!startup && initialMessage && (
+              <div className="flex justify-center py-8">
+                <div className="text-white/60 text-sm flex items-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span>Loading conversation...</span>
+                </div>
+              </div>
+            )}
+
             {/* Tab-specific content */}
             {activeTab === 'planning' && startup?.project_status === 'workspace_ready' && (
               <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-4">
@@ -274,6 +296,20 @@ export default function ChatPage({ params }: ChatPageProps) {
                   <p>• Switch between different AI agents (Frontend, Backend, Design, etc.)</p>
                 </div>
               </div>
+            )}
+
+            {/* Show optimistic initial message while loading */}
+            {optimisticInitialMessage && (
+              <ChatMessageComponent
+                key="optimistic-initial"
+                message={{
+                  id: 'optimistic-initial',
+                  role: 'user',
+                  content: optimisticInitialMessage.content,
+                  timestamp: optimisticInitialMessage.timestamp,
+                  metadata: { agent: 'jason' }
+                }}
+              />
             )}
 
             {filteredMessages.map((message) => (

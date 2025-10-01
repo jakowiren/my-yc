@@ -29,6 +29,7 @@ export default function Home() {
   const [isTyping, setIsTyping] = useState(true)
   const [inputValue, setInputValue] = useState("")
   const [showLoginModal, setShowLoginModal] = useState(false)
+  const [isCreatingStartup, setIsCreatingStartup] = useState(false)
 
 
   useEffect(() => {
@@ -68,6 +69,8 @@ export default function Home() {
       return
     }
 
+    setIsCreatingStartup(true)
+
     try {
       // Create new startup in Supabase first
       const startupData: StartupInsert = {
@@ -83,6 +86,7 @@ export default function Home() {
 
       if (error) {
         console.error('Failed to create startup:', error)
+        setIsCreatingStartup(false)
         if (error.message.includes('Maximum of 5 active startups')) {
           alert('You have reached the maximum of 5 startups. Please delete some old ones first.')
           return
@@ -94,14 +98,16 @@ export default function Home() {
       // Navigate to chat page using Supabase startup ID
       const encodedMessage = encodeURIComponent(inputValue)
       router.push(`/chat/${startup.id}?message=${encodedMessage}`)
+      // Don't clear loading state here - let the navigation happen
     } catch (error) {
       console.error('Error creating startup:', error)
+      setIsCreatingStartup(false)
       alert('Failed to create startup. Please try again.')
     }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !isCreatingStartup) {
       e.preventDefault()
       handleSendMessage()
     }
@@ -149,18 +155,19 @@ export default function Home() {
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder={inputValue ? '' : currentPrompt}
-                className="w-full resize-none min-h-[60px] bg-transparent border-0 text-white placeholder:text-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-sm"
+                disabled={isCreatingStartup}
+                className="w-full resize-none min-h-[60px] bg-transparent border-0 text-white placeholder:text-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 text-sm disabled:opacity-60"
               />
               <div className="flex items-center justify-between mt-2">
                 <div className="text-xs text-white/40">
-                  {!user ? 'Sign in to chat with Jason' : 'Press Enter to start your conversation'}
+                  {isCreatingStartup ? 'Starting conversation...' : !user ? 'Sign in to chat with Jason' : 'Press Enter to start your conversation'}
                 </div>
                 <button
                   onClick={handleSendMessage}
-                  disabled={!inputValue.trim()}
-                  className="text-white/50 hover:text-white text-xs px-2 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!inputValue.trim() || isCreatingStartup}
+                  className="text-white/50 hover:text-white text-xs px-2 py-1 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
                 >
-                  Start Chat
+                  {isCreatingStartup ? 'Starting...' : 'Start Chat'}
                 </button>
               </div>
             </div>
