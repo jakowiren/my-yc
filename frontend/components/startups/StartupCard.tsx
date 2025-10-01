@@ -2,8 +2,17 @@
 
 import { useState } from 'react'
 import { Startup } from '@/lib/types/supabase'
-import { MessageSquare, Trash2, Calendar } from 'lucide-react'
+import { MessageSquare, Trash2, Calendar, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 interface StartupCardProps {
   startup: Startup
@@ -12,18 +21,21 @@ interface StartupCardProps {
 
 export function StartupCard({ startup, onDelete }: StartupCardProps) {
   const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
-  const handleDelete = async (e: React.MouseEvent) => {
+  const handleDeleteClick = (e: React.MouseEvent) => {
     e.preventDefault() // Prevent navigation when clicking delete
+    setShowDeleteDialog(true)
+  }
 
-    if (window.confirm('Are you sure you want to delete this startup conversation?')) {
-      setIsDeleting(true)
-      try {
-        await onDelete(startup.id)
-      } catch (error) {
-        console.error('Failed to delete startup:', error)
-        setIsDeleting(false)
-      }
+  const handleConfirmDelete = async () => {
+    setIsDeleting(true)
+    try {
+      await onDelete(startup.id)
+      setShowDeleteDialog(false)
+    } catch (error) {
+      console.error('Failed to delete startup:', error)
+      setIsDeleting(false)
     }
   }
 
@@ -40,7 +52,7 @@ export function StartupCard({ startup, onDelete }: StartupCardProps) {
       <div className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-all duration-200 group-hover:border-white/20 relative">
         {/* Delete button */}
         <button
-          onClick={handleDelete}
+          onClick={handleDeleteClick}
           disabled={isDeleting}
           className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-500/20 rounded disabled:opacity-50 disabled:cursor-not-allowed"
           title="Delete startup"
@@ -78,6 +90,38 @@ export function StartupCard({ startup, onDelete }: StartupCardProps) {
           </div>
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent onClick={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-400" />
+              Delete Startup?
+            </DialogTitle>
+            <DialogDescription className="space-y-3 pt-4">
+              <p>Are you sure you want to delete &quot;{startup.title || 'this startup'}&quot;?</p>
+              <p className="text-sm text-red-400">This action cannot be undone. All messages and data will be permanently deleted.</p>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Link>
   )
 }
