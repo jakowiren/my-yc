@@ -34,6 +34,8 @@ export default function ChatPage({ params }: ChatPageProps) {
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const [optimisticInitialMessage, setOptimisticInitialMessage] = useState<{ content: string; timestamp: number } | null>(null)
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true)
+  const lastScrollTopRef = useRef<number>(0)
+  const isAutoScrollingRef = useRef<boolean>(false)
 
   // Get startup ID from URL params (this is the Supabase startup ID)
   const startupId = params.conversationId
@@ -123,12 +125,24 @@ export default function ChatPage({ params }: ChatPageProps) {
       const { scrollTop, scrollHeight, clientHeight } = container
       const distanceFromBottom = scrollHeight - scrollTop - clientHeight
 
-      // Enable auto-scroll if user is within 50px of bottom
-      // Disable if user has scrolled up more than 50px from bottom
-      if (distanceFromBottom <= 50) {
-        setAutoScrollEnabled(true)
-      } else if (distanceFromBottom > 50) {
+      // If this is a programmatic scroll, ignore it
+      if (isAutoScrollingRef.current) {
+        isAutoScrollingRef.current = false
+        lastScrollTopRef.current = scrollTop
+        return
+      }
+
+      // Detect manual scroll direction
+      const isScrollingUp = scrollTop < lastScrollTopRef.current
+      lastScrollTopRef.current = scrollTop
+
+      // Disable auto-scroll immediately on any manual upward scroll
+      if (isScrollingUp) {
         setAutoScrollEnabled(false)
+      }
+      // Re-enable auto-scroll if user manually scrolls to within 20px of bottom
+      else if (distanceFromBottom <= 20) {
+        setAutoScrollEnabled(true)
       }
     }
 
@@ -141,6 +155,9 @@ export default function ChatPage({ params }: ChatPageProps) {
     if (!autoScrollEnabled || !messagesContainerRef.current) return
 
     const container = messagesContainerRef.current
+
+    // Mark this as a programmatic scroll
+    isAutoScrollingRef.current = true
 
     // Use requestAnimationFrame for smoother scrolling during streaming
     requestAnimationFrame(() => {
