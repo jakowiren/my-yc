@@ -1,6 +1,6 @@
 "use client"
 
-import { ChatMessage } from '@/lib/hooks/use-chat'
+import { ChatMessage } from '@/lib/hooks/use-startup'
 
 interface ChatMessageProps {
   message: ChatMessage
