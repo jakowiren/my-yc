@@ -125,6 +125,8 @@ export function useStartup(): UseStartupReturn {
     setIsLoading(true)
     setError(null)
 
+    let visibilityHandler: (() => void) | null = null
+
     try {
 
       // Save user message to database
@@ -242,6 +244,15 @@ export function useStartup(): UseStartupReturn {
           requestAnimationFrame(updateUI)
         }
       }
+
+      // Handle tab visibility changes - flush buffer when user returns to tab
+      visibilityHandler = () => {
+        if (!document.hidden && buffer.length > 0) {
+          // Tab became visible and we have buffered content
+          updateUI()
+        }
+      }
+      document.addEventListener('visibilitychange', visibilityHandler)
 
       while (true) {
         const { done, value } = await reader.read()
@@ -424,6 +435,10 @@ export function useStartup(): UseStartupReturn {
       setError(err instanceof Error ? err.message : 'Failed to send message')
       console.error('Chat error:', err)
     } finally {
+      // Clean up visibility change listener
+      if (typeof document !== 'undefined' && visibilityHandler) {
+        document.removeEventListener('visibilitychange', visibilityHandler)
+      }
       setIsLoading(false)
     }
   }, [session, startup, messages])
