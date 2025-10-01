@@ -7,16 +7,26 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// New workspace endpoints (replace the hardcoded ones with environment variables in production)
+// Validate required environment variables
+if (!process.env.NEXT_PUBLIC_WORKSPACE_AGENT_ENDPOINT) {
+  throw new Error('NEXT_PUBLIC_WORKSPACE_AGENT_ENDPOINT is not configured')
+}
+if (!process.env.NEXT_PUBLIC_WORKSPACE_AGENT_STREAM_ENDPOINT) {
+  throw new Error('NEXT_PUBLIC_WORKSPACE_AGENT_STREAM_ENDPOINT is not configured')
+}
+if (!process.env.NEXT_PUBLIC_WORKSPACE_STATUS_ENDPOINT) {
+  throw new Error('NEXT_PUBLIC_WORKSPACE_STATUS_ENDPOINT is not configured')
+}
+if (!process.env.NEXT_PUBLIC_WORKSPACE_TEAM_BOARD_ENDPOINT) {
+  throw new Error('NEXT_PUBLIC_WORKSPACE_TEAM_BOARD_ENDPOINT is not configured')
+}
+
+// Workspace endpoints (must be configured via environment variables)
 const WORKSPACE_ENDPOINTS = {
-  AGENT_INVOKE: process.env.NEXT_PUBLIC_WORKSPACE_AGENT_ENDPOINT ||
-               'https://jakowiren--my-yc-startup-workspaces-agent-invoke.modal.run',
-  AGENT_STREAM: process.env.NEXT_PUBLIC_WORKSPACE_AGENT_STREAM_ENDPOINT ||
-               'https://jakowiren--my-yc-startup-workspaces-agent-stream.modal.run',
-  WORKSPACE_STATUS: process.env.NEXT_PUBLIC_WORKSPACE_STATUS_ENDPOINT ||
-                   'https://jakowiren--my-yc-startup-workspaces-workspace-status.modal.run',
-  TEAM_BOARD: process.env.NEXT_PUBLIC_WORKSPACE_TEAM_BOARD_ENDPOINT ||
-             'https://jakowiren--my-yc-startup-workspaces-team-board.modal.run'
+  AGENT_INVOKE: process.env.NEXT_PUBLIC_WORKSPACE_AGENT_ENDPOINT,
+  AGENT_STREAM: process.env.NEXT_PUBLIC_WORKSPACE_AGENT_STREAM_ENDPOINT,
+  WORKSPACE_STATUS: process.env.NEXT_PUBLIC_WORKSPACE_STATUS_ENDPOINT,
+  TEAM_BOARD: process.env.NEXT_PUBLIC_WORKSPACE_TEAM_BOARD_ENDPOINT
 }
 
 interface ChatMessage {

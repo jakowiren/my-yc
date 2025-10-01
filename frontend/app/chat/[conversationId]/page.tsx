@@ -2,7 +2,8 @@
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Send, MessageSquare, Zap } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ArrowLeft, Send, MessageSquare, Zap, ExternalLink } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useStartup } from "@/lib/hooks/use-startup"
@@ -36,6 +37,10 @@ export default function ChatPage({ params }: ChatPageProps) {
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true)
   const lastScrollTopRef = useRef<number>(0)
   const isAutoScrollingRef = useRef<boolean>(false)
+  const [successDialog, setSuccessDialog] = useState<{ open: boolean; message: string; githubUrl?: string; repoName?: string }>({
+    open: false,
+    message: '',
+  })
 
   // Get startup ID from URL params (this is the Supabase startup ID)
   const startupId = params.conversationId
@@ -225,21 +230,17 @@ export default function ChatPage({ params }: ChatPageProps) {
         console.log('✅ Startup reloaded, new status:', reloadedStartup?.project_status)
       }
 
-      // Show success message with GitHub link if available
-      if (result.github_url) {
-        const viewRepo = confirm(
-          `🎉 ${result.message}\n\nRepository: ${result.repo_name}\n\nWould you like to view your new GitHub repository?`
-        )
-        if (viewRepo) {
-          window.open(result.github_url, '_blank')
-        }
-      } else {
-        alert(`🎉 ${result.message}`)
-      }
+      // Show success dialog
+      setSuccessDialog({
+        open: true,
+        message: result.message || 'Workspace initialized successfully! You can now chat with the CEO to create your project.',
+        githubUrl: result.github_url,
+        repoName: result.repo_name,
+      })
 
     } catch (error) {
       console.error('Failed to start project:', error)
-      alert(`Failed to start project: ${error instanceof Error ? error.message : String(error)}`)
+      setError(`Failed to start project: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setIsStartingProject(false)
     }
@@ -456,6 +457,39 @@ export default function ChatPage({ params }: ChatPageProps) {
           {error}
         </div>
       )}
+
+      {/* Success Dialog */}
+      <Dialog open={successDialog.open} onOpenChange={(open) => setSuccessDialog(prev => ({ ...prev, open }))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>🎉 Workspace Ready!</DialogTitle>
+            <DialogDescription className="space-y-4 pt-4">
+              <p>{successDialog.message}</p>
+              {successDialog.githubUrl && successDialog.repoName && (
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 space-y-3">
+                  <p className="text-sm font-medium text-blue-300">GitHub Repository Created</p>
+                  <p className="text-sm text-white/70">{successDialog.repoName}</p>
+                  <Button
+                    onClick={() => window.open(successDialog.githubUrl, '_blank')}
+                    className="w-full"
+                    variant="default"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View Repository
+                  </Button>
+                </div>
+              )}
+              <Button
+                onClick={() => setSuccessDialog({ open: false, message: '' })}
+                className="w-full"
+                variant="outline"
+              >
+                Continue
+              </Button>
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

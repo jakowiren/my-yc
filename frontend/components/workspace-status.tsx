@@ -59,11 +59,19 @@ export function WorkspaceStatus({ startupId, className }: WorkspaceStatusProps) 
         const data = await response.json()
         setStatus(data.workspace_status)
         setLastRefresh(new Date())
+      } else if (response.status === 503) {
+        // Workspace is cold-starting or not yet ready
+        setError('Workspace is cold-starting. Send a message to wake it up.')
       } else {
         throw new Error(`Failed to fetch status: ${response.status}`)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      // For network errors or other issues, show a friendly message
+      if (err instanceof Error && err.message.includes('503')) {
+        setError('Workspace is cold-starting. Send a message to wake it up.')
+      } else {
+        setError(err instanceof Error ? err.message : 'Unknown error')
+      }
     } finally {
       setLoading(false)
     }
@@ -115,6 +123,7 @@ export function WorkspaceStatus({ startupId, className }: WorkspaceStatusProps) 
   }
 
   if (error) {
+    const isColdStart = error.includes('cold-starting')
     return (
       <Card className={className}>
         <CardHeader className="pb-3">
@@ -132,7 +141,9 @@ export function WorkspaceStatus({ startupId, className }: WorkspaceStatusProps) 
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-sm text-destructive">Error: {error}</div>
+          <div className={`text-sm ${isColdStart ? 'text-yellow-400' : 'text-destructive'}`}>
+            {isColdStart ? '⚡ ' : ''}{error}
+          </div>
         </CardContent>
       </Card>
     )
