@@ -29,6 +29,8 @@ const WORKSPACE_ENDPOINTS = {
   TEAM_BOARD: process.env.NEXT_PUBLIC_WORKSPACE_TEAM_BOARD_ENDPOINT
 }
 
+console.log('🔧 Workspace endpoints configured:', WORKSPACE_ENDPOINTS)
+
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
@@ -130,11 +132,32 @@ export async function POST(req: NextRequest) {
           message: lastMessage.content,
           context: context
         })
+      }).catch(err => {
+        console.error('❌ Network error calling workspace endpoint:', err)
+        throw err
       })
+
+      console.log(`📊 Workspace response status: ${workspaceResponse.status}`)
+      console.log(`📊 Workspace response headers:`, Object.fromEntries(workspaceResponse.headers.entries()))
 
       if (workspaceResponse.ok) {
         if (stream && workspaceResponse.body) {
           console.log('✅ Workspace streaming response received')
+
+          // Check if it's actually an error response with 200 status
+          const contentType = workspaceResponse.headers.get('content-type')
+          if (contentType?.includes('application/json')) {
+            // It's JSON, might be an error response
+            const jsonResponse = await workspaceResponse.json()
+            if (jsonResponse.success === false || jsonResponse.error) {
+              console.error('❌ Workspace returned error in 200 response:', jsonResponse)
+              return NextResponse.json({
+                error: jsonResponse.error || 'Workspace error',
+                details: JSON.stringify(jsonResponse),
+                agent_type: agent_type
+              }, { status: 503 })
+            }
+          }
 
           // Return the streaming response directly
           return new Response(workspaceResponse.body, {
@@ -149,7 +172,17 @@ export async function POST(req: NextRequest) {
         } else {
           // Non-streaming response
           const responseData = await workspaceResponse.json()
-          console.log('✅ Workspace response received')
+          console.log('✅ Workspace response received:', responseData)
+
+          // Check for error in response
+          if (responseData.success === false || responseData.error) {
+            console.error('❌ Workspace returned error:', responseData)
+            return NextResponse.json({
+              error: responseData.error || 'Workspace error',
+              details: JSON.stringify(responseData),
+              agent_type: agent_type
+            }, { status: 503 })
+          }
 
           return NextResponse.json({
             success: true,
@@ -164,13 +197,20 @@ export async function POST(req: NextRequest) {
       } else {
         console.error('❌ Failed to reach workspace endpoint:', workspaceResponse.status)
         const errorText = await workspaceResponse.text()
-        console.error('Workspace endpoint error:', errorText)
+        console.error('Workspace endpoint error response:', errorText)
+        console.error('Full error details:', {
+          status: workspaceResponse.status,
+          statusText: workspaceResponse.statusText,
+          url: endpoint,
+          errorBody: errorText
+        })
 
         return NextResponse.json({
           error: 'Workspace service unavailable',
           status: workspaceResponse.status,
           details: errorText,
-          agent_type: agent_type
+          agent_type: agent_type,
+          endpoint: endpoint // Include endpoint for debugging
         }, { status: 503 })
       }
     } catch (error) {
