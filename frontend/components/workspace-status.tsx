@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -42,7 +42,7 @@ export function WorkspaceStatus({ startupId, className }: WorkspaceStatusProps) 
   const [isExpanded, setIsExpanded] = useState(false)
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
 
-  const fetchStatus = async () => {
+  const fetchStatus = useCallback(async () => {
     if (!session?.access_token || !startupId) return
 
     setLoading(true)
@@ -67,11 +67,11 @@ export function WorkspaceStatus({ startupId, className }: WorkspaceStatusProps) 
     } finally {
       setLoading(false)
     }
-  }
+  }, [session, startupId])
 
   useEffect(() => {
     fetchStatus()
-  }, [startupId, session])
+  }, [fetchStatus])
 
   const getStatusColor = (status: string, containerStatus: string) => {
     if (status === 'error') return 'destructive'

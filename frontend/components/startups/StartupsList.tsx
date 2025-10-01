@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { supabase } from '@/lib/supabase'
 import { Startup } from '@/lib/types/supabase'
@@ -13,18 +13,7 @@ export function StartupsList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Load user's startups
-  useEffect(() => {
-    if (!user) {
-      setStartups([])
-      setLoading(false)
-      return
-    }
-
-    loadStartups()
-  }, [user])
-
-  const loadStartups = async () => {
+  const loadStartups = useCallback(async () => {
     if (!user) return
 
     try {
@@ -49,7 +38,18 @@ export function StartupsList() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+
+  // Load user's startups
+  useEffect(() => {
+    if (!user) {
+      setStartups([])
+      setLoading(false)
+      return
+    }
+
+    loadStartups()
+  }, [user, loadStartups])
 
   const handleDeleteStartup = async (startupId: string) => {
     try {

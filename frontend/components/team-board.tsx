@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -38,7 +38,7 @@ export function TeamBoard({ startupId, className }: TeamBoardProps) {
   const [error, setError] = useState<string | null>(null)
   const [isOpen, setIsOpen] = useState(false)
 
-  const fetchTeamBoard = async () => {
+  const fetchTeamBoard = useCallback(async () => {
     if (!session?.access_token || !startupId) return
 
     setLoading(true)
@@ -62,13 +62,13 @@ export function TeamBoard({ startupId, className }: TeamBoardProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [session, startupId])
 
   useEffect(() => {
     if (isOpen) {
       fetchTeamBoard()
     }
-  }, [isOpen, startupId, session])
+  }, [isOpen, fetchTeamBoard])
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {

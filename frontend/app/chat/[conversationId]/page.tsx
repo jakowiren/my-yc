@@ -269,8 +269,8 @@ export default function ChatPage({ params }: ChatPageProps) {
 
                 <div className="text-sm text-blue-300/80 space-y-1 mt-4">
                   <p><strong>💡 Next Steps:</strong></p>
-                  <p>• Ask the CEO: "Create a GitHub repository for our project"</p>
-                  <p>• Test team communication: "Write to the team board that we're starting development"</p>
+                  <p>• Ask the CEO: &quot;Create a GitHub repository for our project&quot;</p>
+                  <p>• Test team communication: &quot;Write to the team board that we&apos;re starting development&quot;</p>
                   <p>• Switch between different AI agents (Frontend, Backend, Design, etc.)</p>
                 </div>
               </div>
