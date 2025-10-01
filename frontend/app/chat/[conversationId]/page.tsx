@@ -145,9 +145,9 @@ export default function ChatPage({ params }: ChatPageProps) {
       console.log('✅ Project spawn result:', result)
       console.log('🔄 Reloading startup data for ID:', startup.id)
 
-      // Reload startup to get updated status
+      // Reload startup to get updated status (but don't reload messages to avoid race conditions)
       if (startup.id) {
-        const reloadedStartup = await loadStartup(startup.id)
+        const reloadedStartup = await loadStartup(startup.id, false)
         console.log('✅ Startup reloaded, new status:', reloadedStartup?.project_status)
       }
 

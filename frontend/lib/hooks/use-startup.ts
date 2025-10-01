@@ -20,7 +20,7 @@ interface UseStartupReturn {
   isLoading: boolean
   error: string | null
   sendMessage: (content: string, agentType?: string) => Promise<void>
-  loadStartup: (startupId: string) => Promise<Startup | null>
+  loadStartup: (startupId: string, reloadMessages?: boolean) => Promise<Startup | null>
   clearMessages: () => void
 }
 
@@ -31,7 +31,7 @@ export function useStartup(): UseStartupReturn {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const loadStartup = useCallback(async (startupId: string): Promise<Startup | null> => {
+  const loadStartup = useCallback(async (startupId: string, reloadMessages: boolean = true): Promise<Startup | null> => {
     if (!session?.access_token) {
       setError('Not authenticated')
       return null
@@ -54,29 +54,33 @@ export function useStartup(): UseStartupReturn {
 
       setStartup(startupData)
 
-      // Load messages for this startup
-      const { data: messagesData, error: messagesError } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('startup_id', startupId)
-        .order('created_at', { ascending: true })
+      // Only reload messages if explicitly requested
+      if (reloadMessages) {
+        // Load messages for this startup
+        const { data: messagesData, error: messagesError } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('startup_id', startupId)
+          .order('created_at', { ascending: true })
 
-      if (messagesError) {
-        throw new Error(messagesError.message)
+        if (messagesError) {
+          throw new Error(messagesError.message)
+        }
+
+        // Convert Supabase messages to ChatMessage format
+        const chatMessages: ChatMessage[] = messagesData
+          .filter(msg => msg.role !== 'system')
+          .map(msg => ({
+            id: msg.id,
+            role: msg.role as 'user' | 'assistant',
+            content: msg.content,
+            timestamp: new Date(msg.created_at).getTime(),
+            metadata: msg.metadata || {}
+          }))
+
+        setMessages(chatMessages)
       }
 
-      // Convert Supabase messages to ChatMessage format
-      const chatMessages: ChatMessage[] = messagesData
-        .filter(msg => msg.role !== 'system')
-        .map(msg => ({
-          id: msg.id,
-          role: msg.role as 'user' | 'assistant',
-          content: msg.content,
-          timestamp: new Date(msg.created_at).getTime(),
-          metadata: msg.metadata || {}
-        }))
-
-      setMessages(chatMessages)
       return startupData
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load startup')
@@ -98,12 +102,23 @@ export function useStartup(): UseStartupReturn {
 
     if (!content.trim()) return
 
-    // Add user message immediately (optimistic update)
+    // Determine current agent based on project status and passed agentType
+    let currentAgent: string
+    if (startup.project_status === 'workspace_ready' && startup.ceo_status === 'ready') {
+      // Use provided agent type or default to 'ceo' for workspace
+      currentAgent = agentType || 'ceo'
+    } else {
+      // Use Jason for planning phase
+      currentAgent = 'jason'
+    }
+
+    // Add user message immediately (optimistic update) with metadata
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
       content: content.trim(),
       timestamp: Date.now(),
+      metadata: { agent: currentAgent }
     }
 
     setMessages(prev => [...prev, userMessage])
@@ -111,15 +126,6 @@ export function useStartup(): UseStartupReturn {
     setError(null)
 
     try {
-      // Determine current agent based on project status and passed agentType
-      let currentAgent: string
-      if (startup.project_status === 'workspace_ready' && startup.ceo_status === 'ready') {
-        // Use provided agent type or default to 'ceo' for workspace
-        currentAgent = agentType || 'ceo'
-      } else {
-        // Use Jason for planning phase
-        currentAgent = 'jason'
-      }
 
       // Save user message to database
       const userMessageData: MessageInsert = {
@@ -179,6 +185,7 @@ export function useStartup(): UseStartupReturn {
         role: 'assistant',
         content: '',
         timestamp: Date.now(),
+        metadata: { agent: currentAgent }
       }
 
       // Add empty assistant message that we'll update
