@@ -292,7 +292,6 @@ export function useStartup(): UseStartupReturn {
                 if (parsed.content.match(/[\s\n,.!?;:]/)) {
                   scheduleUpdate()
                 }
-              }
 
                 // Check if this is the first message and extract title
                 if (messages.length === 1 && assistantContent.includes('TITLE:')) {
