@@ -44,8 +44,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Route based on project status
-    const isWorkspaceReady = startup.project_status === 'workspace_ready' &&
-                             startup.ceo_status === 'ready'
+    const isWorkspaceReady = (startup as any).project_status === 'workspace_ready' &&
+                             (startup as any).ceo_status === 'ready'
 
     if (isWorkspaceReady) {
       console.log('→ Routing to Workspace Agent')
