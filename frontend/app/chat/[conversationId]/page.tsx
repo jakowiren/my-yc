@@ -60,10 +60,20 @@ export default function ChatPage({ params }: ChatPageProps) {
     if (initialMessage && !hasInitializedRef.current && startup && user) {
       console.log('📤 Sending initial message:', initialMessage)
       hasInitializedRef.current = true
-      setOptimisticInitialMessage(null) // Clear optimistic message
-      sendMessage(initialMessage)
+      // Don't clear optimistic message yet - sendMessage will add the real one
+      // and we'll clear it after isLoading is true
+      sendMessage(initialMessage).then(() => {
+        setOptimisticInitialMessage(null)
+      })
     }
   }, [initialMessage, startup, user, sendMessage])
+
+  // Clear optimistic message once loading starts
+  useEffect(() => {
+    if (isLoading && optimisticInitialMessage) {
+      setOptimisticInitialMessage(null)
+    }
+  }, [isLoading, optimisticInitialMessage])
 
   // Switch to Action tab when workspace is ready
   useEffect(() => {

@@ -192,6 +192,8 @@ export function useStartup(): UseStartupReturn {
       setMessages(prev => [...prev, assistantMessage])
 
       const decoder = new TextDecoder()
+      let lastUpdateTime = 0
+      const UPDATE_INTERVAL = 50 // ms between UI updates (slower streaming)
 
       while (true) {
         const { done, value } = await reader.read()
@@ -231,6 +233,13 @@ export function useStartup(): UseStartupReturn {
               }
               if (parsed.content) {
                 assistantContent += parsed.content
+
+                // Throttle UI updates for slower, more readable streaming
+                const now = Date.now()
+                if (now - lastUpdateTime < UPDATE_INTERVAL) {
+                  continue // Skip this update to slow down streaming
+                }
+                lastUpdateTime = now
 
                 // Filter out DESIGN_DOC_FINAL lines from display
                 let displayContent = assistantContent
@@ -328,6 +337,37 @@ export function useStartup(): UseStartupReturn {
             }
           }
         }
+      }
+
+      // Final update to ensure all content is displayed
+      if (assistantContent) {
+        let displayContent = assistantContent
+        const designDocIndex = displayContent.indexOf('DESIGN_DOC_FINAL:')
+        if (designDocIndex !== -1) {
+          let braceCount = 0
+          let jsonStart = displayContent.indexOf('{', designDocIndex)
+          if (jsonStart !== -1) {
+            let jsonEnd = jsonStart
+            for (let i = jsonStart; i < displayContent.length; i++) {
+              if (displayContent[i] === '{') braceCount++
+              if (displayContent[i] === '}') braceCount--
+              if (braceCount === 0) {
+                jsonEnd = i
+                break
+              }
+            }
+            displayContent = displayContent.substring(0, designDocIndex) + displayContent.substring(jsonEnd + 1)
+            displayContent = displayContent.trim()
+          }
+        }
+
+        setMessages(prev =>
+          prev.map(msg =>
+            msg.id === assistantMessage.id
+              ? { ...msg, content: displayContent }
+              : msg
+          )
+        )
       }
 
     } catch (err) {
