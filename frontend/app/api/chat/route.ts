@@ -17,8 +17,9 @@ export async function POST(req: NextRequest) {
     // Authenticate user
     const user = await verifyAuth(req)
 
-    // Parse request
-    const { messages, startup_id, agent_type }: ChatRequest = await req.json()
+    // Parse request body
+    const body: ChatRequest = await req.json()
+    const { messages, startup_id } = body
 
     if (!messages || !Array.isArray(messages)) {
       return errorResponse('Invalid messages format', 400)
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
     // If no startup_id, route to planning (Jason)
     if (!startup_id) {
       console.log('→ Routing to Jason (planning phase)')
-      return routeToPlanning(req)
+      return routeToPlanning(req, body)
     }
 
     // Get startup status to determine routing
@@ -49,10 +50,10 @@ export async function POST(req: NextRequest) {
 
     if (isWorkspaceReady) {
       console.log('→ Routing to Workspace Agent')
-      return routeToWorkspace(req)
+      return routeToWorkspace(req, body)
     } else {
       console.log('→ Routing to Jason (planning phase)')
-      return routeToPlanning(req)
+      return routeToPlanning(req, body)
     }
   } catch (error) {
     console.error('Chat router error:', error)
@@ -63,16 +64,34 @@ export async function POST(req: NextRequest) {
 
 /**
  * Route to planning/chat (Jason AI)
+ * Creates a new request with the body to avoid "body already read" error
  */
-async function routeToPlanning(req: NextRequest) {
+async function routeToPlanning(originalReq: NextRequest, body: ChatRequest) {
   const { POST: planningPost } = await import('../planning/chat/route')
-  return planningPost(req)
+
+  // Create a new request with the parsed body
+  const newReq = new NextRequest(originalReq.url, {
+    method: 'POST',
+    headers: originalReq.headers,
+    body: JSON.stringify(body),
+  })
+
+  return planningPost(newReq)
 }
 
 /**
  * Route to workspace/agent (CEO and team agents)
+ * Creates a new request with the body to avoid "body already read" error
  */
-async function routeToWorkspace(req: NextRequest) {
+async function routeToWorkspace(originalReq: NextRequest, body: ChatRequest) {
   const { POST: workspacePost } = await import('../workspace/agent/route')
-  return workspacePost(req)
+
+  // Create a new request with the parsed body
+  const newReq = new NextRequest(originalReq.url, {
+    method: 'POST',
+    headers: originalReq.headers,
+    body: JSON.stringify(body),
+  })
+
+  return workspacePost(newReq)
 }
