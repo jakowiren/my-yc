@@ -104,7 +104,10 @@ export async function POST(req: NextRequest) {
       // Choose endpoint based on stream preference
       const endpoint = stream ? WORKSPACE_ENDPOINTS.AGENT_STREAM : WORKSPACE_ENDPOINTS.AGENT_INVOKE
 
-      console.log(`📡 Calling workspace endpoint: ${endpoint}`)
+      console.log(`📡 Stream preference: ${stream}`)
+      console.log(`📡 Selected endpoint: ${endpoint}`)
+      console.log(`📡 AGENT_STREAM endpoint: ${WORKSPACE_ENDPOINTS.AGENT_STREAM}`)
+      console.log(`📡 AGENT_INVOKE endpoint: ${WORKSPACE_ENDPOINTS.AGENT_INVOKE}`)
       console.log(`📋 Payload:`, {
         startup_id: startup_id,
         agent_type: agent_type,
@@ -135,22 +138,46 @@ export async function POST(req: NextRequest) {
         if (stream && workspaceResponse.body) {
           console.log('✅ Workspace streaming response received')
 
-          // Check if it's actually an error response with 200 status
+          // Check content-type to determine if it's actually streaming or JSON error
           const contentType = workspaceResponse.headers.get('content-type')
+          console.log('📊 Response content-type:', contentType)
+
+          // If Modal returned JSON instead of stream, handle as non-streaming
           if (contentType?.includes('application/json')) {
-            // It's JSON, might be an error response
+            console.log('⚠️ Expected stream but got JSON response, handling as non-streaming')
             const jsonResponse = await workspaceResponse.json()
+
             if (jsonResponse.success === false || jsonResponse.error) {
-              console.error('❌ Workspace returned error in 200 response:', jsonResponse)
+              console.error('❌ Workspace returned error:', jsonResponse)
               return NextResponse.json({
                 error: jsonResponse.error || 'Workspace error',
                 details: JSON.stringify(jsonResponse),
                 agent_type: agent_type
               }, { status: 503 })
             }
+
+            // Return successful JSON response as streaming to frontend
+            // Convert to SSE format
+            const encoder = new TextEncoder()
+            const stream = new ReadableStream({
+              start(controller) {
+                const content = jsonResponse.response || jsonResponse.content || ''
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`))
+                controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+                controller.close()
+              }
+            })
+
+            return new Response(stream, {
+              headers: {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+              },
+            })
           }
 
-          // Return the streaming response directly
+          // Return the actual streaming response directly
           return new Response(workspaceResponse.body, {
             headers: {
               'Content-Type': 'text/event-stream',
