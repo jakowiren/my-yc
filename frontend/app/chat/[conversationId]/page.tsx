@@ -33,6 +33,7 @@ export default function ChatPage({ params }: ChatPageProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const [optimisticInitialMessage, setOptimisticInitialMessage] = useState<{ content: string; timestamp: number } | null>(null)
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true)
 
   // Get startup ID from URL params (this is the Supabase startup ID)
   const startupId = params.conversationId
@@ -60,6 +61,8 @@ export default function ChatPage({ params }: ChatPageProps) {
     if (initialMessage && !hasInitializedRef.current && startup && user) {
       console.log('📤 Sending initial message:', initialMessage)
       hasInitializedRef.current = true
+      // Enable auto-scroll for initial message
+      setAutoScrollEnabled(true)
       // Don't clear optimistic message yet - sendMessage will add the real one
       // and we'll clear it after isLoading is true
       sendMessage(initialMessage).then(() => {
@@ -79,6 +82,8 @@ export default function ChatPage({ params }: ChatPageProps) {
   useEffect(() => {
     if (startup?.project_status === 'workspace_ready' && startup?.ceo_status === 'ready') {
       setActiveTab('action')
+      // Enable auto-scroll when switching tabs
+      setAutoScrollEnabled(true)
     }
   }, [startup?.project_status, startup?.ceo_status])
 
@@ -109,29 +114,50 @@ export default function ChatPage({ params }: ChatPageProps) {
   // Get appropriate AI name for current tab
   const currentAIName = activeTab === 'planning' ? 'Jason' : 'CEO'
 
-  // Auto scroll to bottom when new messages arrive
-  // Only scroll if user is already near the bottom to avoid disrupting manual scrolling
+  // Track user scroll position to enable/disable auto-scroll
   useEffect(() => {
-    if (messagesContainerRef.current) {
-      const container = messagesContainerRef.current
-      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150
+    const container = messagesContainerRef.current
+    if (!container) return
 
-      if (isNearBottom) {
-        // Use requestAnimationFrame for smoother scrolling during streaming
-        requestAnimationFrame(() => {
-          container.scrollTo({
-            top: container.scrollHeight,
-            behavior: 'smooth'
-          })
-        })
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight
+
+      // Enable auto-scroll if user is within 50px of bottom
+      // Disable if user has scrolled up more than 50px from bottom
+      if (distanceFromBottom <= 50) {
+        setAutoScrollEnabled(true)
+      } else if (distanceFromBottom > 50) {
+        setAutoScrollEnabled(false)
       }
     }
-  }, [messages, isLoading])
+
+    container.addEventListener('scroll', handleScroll, { passive: true })
+    return () => container.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Auto scroll to bottom when new messages arrive (only if auto-scroll is enabled)
+  useEffect(() => {
+    if (!autoScrollEnabled || !messagesContainerRef.current) return
+
+    const container = messagesContainerRef.current
+
+    // Use requestAnimationFrame for smoother scrolling during streaming
+    requestAnimationFrame(() => {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'smooth'
+      })
+    })
+  }, [messages, isLoading, autoScrollEnabled])
 
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return
 
     try {
+      // Enable auto-scroll when sending a new message
+      setAutoScrollEnabled(true)
+
       // Pass the selected agent for workspace chats
       const agentToUse = activeTab === 'action' ? selectedAgent : undefined
       await sendMessage(inputValue, agentToUse)
@@ -220,7 +246,10 @@ export default function ChatPage({ params }: ChatPageProps) {
           {/* Tabs */}
           <div className="flex space-x-1">
             <button
-              onClick={() => setActiveTab('planning')}
+              onClick={() => {
+                setActiveTab('planning')
+                setAutoScrollEnabled(true)
+              }}
               className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'planning'
                   ? 'bg-white/10 text-white border border-white/20'
@@ -234,7 +263,10 @@ export default function ChatPage({ params }: ChatPageProps) {
               ) : null}
             </button>
             <button
-              onClick={() => setActiveTab('action')}
+              onClick={() => {
+                setActiveTab('action')
+                setAutoScrollEnabled(true)
+              }}
               disabled={startup?.project_status !== 'workspace_ready' || startup?.ceo_status !== 'ready'}
               className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'action'
