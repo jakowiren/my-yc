@@ -214,8 +214,11 @@ async def invoke_agent(request_data: Dict[str, Any]):
 async def invoke_agent_streaming(request_data: Dict[str, Any]):
     """
     Streaming agent invocation for real-time chat experience.
-    Endpoint: https://jakowiren--my-yc-startup-workspaces-agent-stream.modal.run
+    Endpoint: https://jakowiren--workspace-agent-stream.modal.run
     """
+    print(f"🎬 STREAMING ENDPOINT CALLED")
+    print(f"🎬 Request data: {request_data}")
+
     try:
         # Import modules inside the function
         import sys
@@ -228,7 +231,10 @@ async def invoke_agent_streaming(request_data: Dict[str, Any]):
         agent_type = request_data.get("agent_type", "ceo")
         message = request_data.get("message")
 
+        print(f"🎬 Parsed: startup_id={startup_id}, agent_type={agent_type}, message={message[:50] if message else None}")
+
         if not startup_id or not message:
+            print(f"❌ Missing required fields: startup_id={startup_id}, message={bool(message)}")
             return {
                 "success": False,
                 "error": "startup_id and message are required"
@@ -240,11 +246,14 @@ async def invoke_agent_streaming(request_data: Dict[str, Any]):
         workspace_mgr = WorkspaceManager()
 
         # Check if workspace exists
+        print(f"🎬 Checking if workspace exists for {startup_id}")
         if not workspace_mgr.workspace_exists(startup_id):
+            print(f"❌ Workspace not found for {startup_id}")
             return {
                 "success": False,
                 "error": "Workspace not initialized for this startup. Please initialize first."
             }
+        print(f"✅ Workspace exists for {startup_id}")
 
         # Initialize agent orchestrator
         orchestrator = AgentOrchestrator(startup_id, workspace_mgr)
@@ -275,6 +284,7 @@ async def invoke_agent_streaming(request_data: Dict[str, Any]):
         # Update workspace activity
         workspace_mgr.update_last_activity(startup_id)
 
+        print(f"🎬 Returning StreamingResponse for {startup_id}")
         return StreamingResponse(
             generate_stream(),
             media_type="text/event-stream",
