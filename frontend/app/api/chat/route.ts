@@ -1,279 +1,78 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { JASON_SYSTEM_PROMPT } from '@/lib/ai/jason-prompt'
-import OpenAI from 'openai'
-import { MODAL_ENDPOINTS, WORKSPACE_ENDPOINTS } from '@/lib/config/endpoints'
+/**
+ * Smart Chat Router - Routes requests to appropriate agent based on project status
+ *
+ * Routes to:
+ * - Jason AI (planning/chat) for design phase
+ * - Workspace Agent for active projects
+ */
 
-// Initialize Supabase client for server-side auth verification
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
-// Initialize OpenAI client inline to avoid import errors
-let openai: OpenAI | null = null
-try {
-  if (process.env.OPENAI_API_KEY) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    })
-  }
-} catch (error) {
-  console.error('Failed to initialize OpenAI client:', error)
-}
-
-const CHAT_CONFIG = {
-  model: 'gpt-4o',
-  temperature: 0.7,
-  max_tokens: 2000,
-  stream: true,
-} as const
-
-interface ChatMessage {
-  role: 'user' | 'assistant' | 'system'
-  content: string
-  timestamp?: number
-}
+import { NextRequest } from 'next/server'
+import { verifyAuth } from '@/lib/server/auth'
+import { getSupabaseServerClient } from '@/lib/server/supabase'
+import { errorResponse } from '@/lib/server/api-response'
+import { ChatRequest } from '@/lib/types/chat'
 
 export async function POST(req: NextRequest) {
-  console.log('=== CHAT API POST REQUEST STARTED ===')
-  console.log('Timestamp:', new Date().toISOString())
-  console.log('Environment check:')
-  console.log('- OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY)
-  console.log('- OPENAI_API_KEY length:', process.env.OPENAI_API_KEY?.length || 0)
-  console.log('- OPENAI_API_KEY starts with sk-:', process.env.OPENAI_API_KEY?.startsWith('sk-') || false)
-  console.log('- SUPABASE_SERVICE_ROLE_KEY exists:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
-  console.log('- NEXT_PUBLIC_SUPABASE_URL exists:', !!process.env.NEXT_PUBLIC_SUPABASE_URL)
-  console.log('- OpenAI client initialized:', !!openai)
-
   try {
-    // Check if OpenAI is properly initialized
-    if (!openai) {
-      console.error('❌ OpenAI client not initialized - check OPENAI_API_KEY')
-      console.error('Available env vars:', Object.keys(process.env).filter(key => key.includes('OPENAI')))
-      return NextResponse.json({ error: 'AI service unavailable' }, { status: 503 })
-    }
+    // Authenticate user
+    const user = await verifyAuth(req)
 
-    console.log('✅ OpenAI client is initialized')
-
-    // Get the authorization header
-    console.log('🔐 Checking authorization...')
-    const authHeader = req.headers.get('authorization')
-    console.log('- Auth header exists:', !!authHeader)
-    console.log('- Auth header starts with Bearer:', authHeader?.startsWith('Bearer ') || false)
-
-    if (!authHeader?.startsWith('Bearer ')) {
-      console.error('❌ Missing or invalid authorization header')
-      return NextResponse.json({ error: 'Missing or invalid authorization header' }, { status: 401 })
-    }
-
-    const token = authHeader.split(' ')[1]
-    console.log('- Token length:', token?.length || 0)
-
-    // Verify the user is authenticated
-    console.log('🔍 Verifying user with Supabase...')
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-
-    if (authError) {
-      console.error('❌ Supabase auth error:', authError)
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    if (!user) {
-      console.error('❌ No user found')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    console.log('✅ User authenticated:', user.id)
-
-    // Parse the request body
-    console.log('📝 Parsing request body...')
-    const { messages, startup_id, agent_type }: {
-      messages: ChatMessage[],
-      startup_id?: string,
-      agent_type?: string
-    } = await req.json()
-    console.log('- Messages received:', messages?.length || 0)
-    console.log('- Startup ID:', startup_id)
-    console.log('- Agent type:', agent_type)
-    console.log('- Messages preview:', messages?.slice(-2).map(m => ({ role: m.role, length: m.content?.length })))
+    // Parse request
+    const { messages, startup_id, agent_type }: ChatRequest = await req.json()
 
     if (!messages || !Array.isArray(messages)) {
-      console.error('❌ Invalid messages format')
-      return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 })
+      return errorResponse('Invalid messages format', 400)
     }
 
-    // Smart routing: Check if we should route to CEO or Jason
-    if (startup_id) {
-      console.log('🔀 Smart routing: Checking startup status for startup:', startup_id)
-
-      // Get startup from Supabase to check project status
-      const { data: startup, error: startupError } = await supabase
-        .from('startups')
-        .select('project_status, ceo_status, container_endpoint')
-        .eq('id', startup_id)
-        .eq('user_id', user.id)
-        .single()
-
-      if (startup && !startupError) {
-        console.log('📊 Startup status:', {
-          project_status: startup.project_status,
-          ceo_status: startup.ceo_status
-        })
-
-        // If startup has a workspace ready, route to new workspace agent endpoint
-        if (startup.project_status === 'workspace_ready' && startup.ceo_status === 'ready') {
-          console.log('🤖 Routing to new workspace CEO agent...')
-
-          // Forward to new workspace agent route
-          const workspaceUrl = new URL('/api/workspace/agent', req.url)
-          const workspaceRequest = new Request(workspaceUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': authHeader,
-            },
-            body: JSON.stringify({
-              messages,
-              startup_id,
-              agent_type: agent_type || 'ceo',  // Use passed agent type or default to CEO
-              stream: true
-            })
-          })
-
-          // Call our new workspace agent endpoint
-          try {
-            const { POST: workspacePost } = await import('./../workspace/agent/route')
-            return await workspacePost(workspaceRequest as NextRequest)
-          } catch (error) {
-            console.error('❌ Error routing to workspace agent:', error)
-            console.log('⚠️ Workspace routing failed, falling back to Jason')
-          }
-        }
-      }
+    // If no startup_id, route to planning (Jason)
+    if (!startup_id) {
+      console.log('→ Routing to Jason (planning phase)')
+      return routeToPlanning(req)
     }
 
-    console.log('🎭 Using Jason AI for chat')
+    // Get startup status to determine routing
+    const supabase = getSupabaseServerClient()
+    const { data: startup, error } = await supabase
+      .from('startups')
+      .select('project_status, ceo_status')
+      .eq('id', startup_id)
+      .eq('user_id', user.id)
+      .single()
 
-    // Ensure we have the system prompt at the beginning
-    const systemMessage: ChatMessage = {
-      role: 'system',
-      content: JASON_SYSTEM_PROMPT,
+    if (error || !startup) {
+      return errorResponse('Startup not found', 404)
     }
 
-    // Prepare messages for OpenAI (exclude timestamps and ensure proper format)
-    const openaiMessages = [
-      systemMessage,
-      ...messages.map(msg => ({
-        role: msg.role,
-        content: msg.content,
-      }))
-    ]
+    // Route based on project status
+    const isWorkspaceReady = startup.project_status === 'workspace_ready' &&
+                             startup.ceo_status === 'ready'
 
-    console.log('📤 Prepared', openaiMessages.length, 'messages for OpenAI')
-    console.log('- System prompt length:', JASON_SYSTEM_PROMPT.length)
-
-    // TODO: Add rate limiting (10 messages per day for free users)
-    // TODO: Track message count in Supabase user_daily_limits table
-
-    // Create streaming response
-    console.log('🤖 Calling OpenAI with config:', CHAT_CONFIG)
-    const stream = await openai.chat.completions.create({
-      ...CHAT_CONFIG,
-      messages: openaiMessages as any,
-    })
-    console.log('✅ OpenAI stream created successfully')
-
-    // Create a readable stream for the response
-    console.log('📡 Creating streaming response...')
-    const encoder = new TextEncoder()
-    let chunkCount = 0
-    let totalContent = ''
-
-    const readable = new ReadableStream({
-      async start(controller) {
-        try {
-          console.log('🔄 Starting stream processing...')
-          for await (const chunk of stream) {
-            chunkCount++
-            const content = chunk.choices[0]?.delta?.content
-            if (content) {
-              totalContent += content
-              const data = `data: ${JSON.stringify({ content })}\n\n`
-              controller.enqueue(encoder.encode(data))
-
-              if (chunkCount <= 3) {
-                console.log(`📦 Chunk ${chunkCount}:`, content.substring(0, 50) + '...')
-              }
-            }
-          }
-          console.log('✅ Stream completed successfully')
-          console.log('- Total chunks processed:', chunkCount)
-          console.log('- Total content length:', totalContent.length)
-          console.log('- Content preview:', totalContent.substring(0, 100) + '...')
-
-          // Send done signal
-          controller.enqueue(encoder.encode(`data: [DONE]\n\n`))
-          controller.close()
-        } catch (error) {
-          console.error('❌ Streaming error:', error)
-          console.error('Error details:', {
-            name: error instanceof Error ? error.name : 'Unknown',
-            message: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : 'No stack trace'
-          })
-          // Send error message before closing
-          const errorData = `data: ${JSON.stringify({ error: 'Streaming failed' })}\n\n`
-          controller.enqueue(encoder.encode(errorData))
-          controller.close()
-        }
-      },
-    })
-
-    return new Response(readable, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
-    })
-
-    console.log('🎉 API request completed successfully')
-
+    if (isWorkspaceReady) {
+      console.log('→ Routing to Workspace Agent')
+      return routeToWorkspace(req)
+    } else {
+      console.log('→ Routing to Jason (planning phase)')
+      return routeToPlanning(req)
+    }
   } catch (error) {
-    console.error('❌ CHAT API ERROR:', error)
-    console.error('Error details:', {
-      name: error instanceof Error ? error.name : 'Unknown',
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : 'No stack trace'
-    })
-    console.log('=== CHAT API REQUEST FAILED ===')
-
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    console.error('Chat router error:', error)
+    const message = error instanceof Error ? error.message : 'Internal server error'
+    return errorResponse(message, error instanceof Error && message === 'Unauthorized' ? 401 : 500)
   }
 }
 
-// Add GET method for debugging
-export async function GET() {
-  console.log('=== CHAT API GET REQUEST ===')
-  console.log('Environment debug info:')
-  console.log('- NODE_ENV:', process.env.NODE_ENV)
-  console.log('- VERCEL:', process.env.VERCEL)
-  console.log('- OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY)
-  console.log('- OPENAI_API_KEY length:', process.env.OPENAI_API_KEY?.length || 0)
-  console.log('- All env vars containing OPENAI:', Object.keys(process.env).filter(key => key.includes('OPENAI')))
+/**
+ * Route to planning/chat (Jason AI)
+ */
+async function routeToPlanning(req: NextRequest) {
+  const { POST: planningPost } = await import('../planning/chat/route')
+  return planningPost(req)
+}
 
-  return NextResponse.json({
-    status: 'Chat API is running',
-    environment: process.env.NODE_ENV,
-    isVercel: !!process.env.VERCEL,
-    openaiConfigured: !!openai,
-    openaiKeyExists: !!process.env.OPENAI_API_KEY,
-    openaiKeyLength: process.env.OPENAI_API_KEY?.length || 0,
-    supabaseConfigured: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    timestamp: new Date().toISOString()
-  })
+/**
+ * Route to workspace/agent (CEO and team agents)
+ */
+async function routeToWorkspace(req: NextRequest) {
+  const { POST: workspacePost } = await import('../workspace/agent/route')
+  return workspacePost(req)
 }
