@@ -195,6 +195,7 @@ export function useStartup(): UseStartupReturn {
       let buffer = '' // Buffer for accumulating words
       let displayedContent = '' // Content currently displayed
       let updateScheduled = false
+      let isFinalizingDesignDoc = false // Flag to pause UI updates during design doc composition
 
       // Function to update UI with buffered content
       const updateUI = () => {
@@ -285,12 +286,26 @@ export function useStartup(): UseStartupReturn {
               }
               if (parsed.content) {
                 assistantContent += parsed.content
-                buffer += parsed.content
 
-                // Update on word boundaries or punctuation for natural flow
-                // This includes spaces, newlines, and punctuation
-                if (parsed.content.match(/[\s\n,.!?;:]/)) {
-                  scheduleUpdate()
+                // Check if Jason is starting to finalize the design doc
+                if (!isFinalizingDesignDoc && assistantContent.toLowerCase().includes('finalizing your design document')) {
+                  isFinalizingDesignDoc = true
+                  // Extract just the finalization message (up to "now...")
+                  const finalizationMatch = assistantContent.match(/(.*?finalizing your design document now\.\.\.)/i)
+                  if (finalizationMatch) {
+                    buffer = finalizationMatch[1]
+                    scheduleUpdate()
+                    buffer = '' // Clear buffer to stop further UI updates
+                  }
+                } else if (!isFinalizingDesignDoc) {
+                  // Only add to buffer if we're not in design doc finalization mode
+                  buffer += parsed.content
+
+                  // Update on word boundaries or punctuation for natural flow
+                  // This includes spaces, newlines, and punctuation
+                  if (parsed.content.match(/[\s\n,.!?;:]/)) {
+                    scheduleUpdate()
+                  }
                 }
 
                 // Check if this is the first message and extract title
@@ -321,6 +336,20 @@ export function useStartup(): UseStartupReturn {
                       const designDoc: StartupDesignDoc = JSON.parse(designDocJson)
 
                       console.log('📋 Design document finalized:', designDoc)
+
+                      // Extract completion message that comes after DESIGN_DOC_FINAL
+                      const afterDocMatch = assistantContent.match(/DESIGN_DOC_FINAL:\s*\{[\s\S]*?\}\s*(.+)/i)
+                      if (afterDocMatch && isFinalizingDesignDoc) {
+                        const completionMessage = afterDocMatch[1].trim()
+                        // Show the completion message
+                        setMessages(prev =>
+                          prev.map(msg =>
+                            msg.id === assistantMessage.id
+                              ? { ...msg, content: `Perfect! I'm finalizing your design document now...\n\n${completionMessage}` }
+                              : msg
+                          )
+                        )
+                      }
 
                       // Update startup with design document and mark as ready
                       supabase
@@ -360,7 +389,8 @@ export function useStartup(): UseStartupReturn {
       }
 
       // Final update to ensure all content is displayed
-      if (assistantContent) {
+      // Skip if we're in design doc finalization mode (already handled above)
+      if (assistantContent && !isFinalizingDesignDoc) {
         let displayContent = assistantContent
         const designDocIndex = displayContent.indexOf('DESIGN_DOC_FINAL:')
         if (designDocIndex !== -1) {
