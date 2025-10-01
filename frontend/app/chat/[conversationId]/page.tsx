@@ -41,6 +41,7 @@ export default function ChatPage({ params }: ChatPageProps) {
     open: false,
     message: '',
   })
+  const [projectStartError, setProjectStartError] = useState<string | null>(null)
 
   // Get startup ID from URL params (this is the Supabase startup ID)
   const startupId = params.conversationId
@@ -240,7 +241,7 @@ export default function ChatPage({ params }: ChatPageProps) {
 
     } catch (error) {
       console.error('Failed to start project:', error)
-      setError(`Failed to start project: ${error instanceof Error ? error.message : String(error)}`)
+      setProjectStartError(`Failed to start project: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setIsStartingProject(false)
     }
@@ -455,6 +456,18 @@ export default function ChatPage({ params }: ChatPageProps) {
       {error && (
         <div className="fixed bottom-4 right-4 bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-2 rounded-lg text-sm z-20">
           {error}
+        </div>
+      )}
+
+      {projectStartError && (
+        <div className="fixed bottom-20 right-4 bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-2 rounded-lg text-sm z-20">
+          {projectStartError}
+          <button
+            onClick={() => setProjectStartError(null)}
+            className="ml-2 text-red-300 hover:text-red-100"
+          >
+            ✕
+          </button>
         </div>
       )}
 
